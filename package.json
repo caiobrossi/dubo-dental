@@ -1,22 +1,23 @@
 {
-  "name": "subframe-nextjs-starter-kit",
+  "name": "dubo",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3000",
     "lint": "next lint"
   },
   "dependencies": {
-    "@subframe/core": "^1.118.0",
+    "@subframe/core": "^1.145.0",
+    "@supabase/supabase-js": "^2.56.0",
     "classnames": "^2.3.2",
     "next": "^14.2.3",
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "20.19.11",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
@@ -24,6 +25,6 @@
     "eslint-config-next": "13.5.4",
     "postcss": "^8",
     "tailwindcss": "^3",
-    "typescript": "^5"
+    "typescript": "5.9.2"
   }
 }

@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { ToastProvider } from "../contexts/ToastContext";
 
 export const metadata: Metadata = {
   title: "Subframe Next.js Starter",
@@ -25,9 +26,23 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
+        {/* eslint-disable-next-line */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Urbanist:wght@100;200;300;400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
+        {/* eslint-disable-next-line */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
       </head>
 
-      <body>{children}</body>
+      <body>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
+      </body>
     </html>
   );
 }
