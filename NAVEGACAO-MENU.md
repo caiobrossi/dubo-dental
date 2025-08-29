@@ -153,3 +153,4 @@ const pathname = usePathname();
 - ✅ **Pronto para produção**
 
 **A navegação do menu está funcionando perfeitamente!** 🎉
+

@@ -37,12 +37,21 @@ export interface Patient {
 export interface Professional {
   id: string
   name: string
-  specialty: string
+  specialty?: string
+  email?: string
+  created_at?: string
+  updated_at?: string
 }
 
 // Tipos para grupos de pacientes
 export interface PatientGroup {
-  id: string
+  id?: string
   name: string
   description?: string
+  group_color?: string
+  group_icon?: string
+  participants?: string
+  patient_count?: number
+  created_at?: string
+  updated_at?: string
 }

@@ -9,6 +9,13 @@ import React from "react";
 import { FeatherMoreVertical } from "@subframe/core";
 import { FeatherShare2 } from "@subframe/core";
 import { FeatherUser } from "@subframe/core";
+import { FeatherUsers } from "@subframe/core";
+import { FeatherComponent } from "@subframe/core";
+import { FeatherSyringe } from "@subframe/core";
+import { FeatherStar } from "@subframe/core";
+import { FeatherHeart } from "@subframe/core";
+import { FeatherShield } from "@subframe/core";
+import { FeatherSettings } from "@subframe/core";
 import * as SubframeCore from "@subframe/core";
 import * as SubframeUtils from "../utils";
 import { IconButton } from "./IconButton";
@@ -20,6 +27,8 @@ interface PatientGroupCardRootProps
   patientCount?: React.ReactNode;
   menuActions?: React.ReactNode;
   className?: string;
+  groupColor?: string;
+  groupIcon?: string;
 }
 
 const PatientGroupCardRoot = React.forwardRef<
@@ -32,6 +41,8 @@ const PatientGroupCardRoot = React.forwardRef<
     patientCount,
     menuActions,
     className,
+    groupColor,
+    groupIcon,
     ...otherProps
   }: PatientGroupCardRootProps,
   ref
@@ -46,12 +57,55 @@ const PatientGroupCardRoot = React.forwardRef<
       {...otherProps}
     >
       <div className="flex w-full items-center gap-2">
-        {icon ? (
-          <img
-            className="h-8 w-8 flex-none object-cover [clip-path:circle()]"
-            src={icon}
-          />
-        ) : null}
+        {/* Colored icon badge replacing previous image */}
+        {(
+          <div
+            className="h-6 w-6 flex-none rounded-full flex items-center justify-center"
+            style={{
+              backgroundColor: (
+                {
+                  blue: "#3b82f6",
+                  green: "#10b981",
+                  red: "#ef4444",
+                  yellow: "#f59e0b",
+                  purple: "#8b5cf6",
+                  orange: "#f97316",
+                  pink: "#ec4899",
+                  gray: "#6b7280",
+                  indigo: "#6366f1",
+                  teal: "#14b8a6",
+                  cyan: "#06b6d4",
+                  emerald: "#10b981",
+                } as Record<string, string>
+              )[groupColor || "blue"] || "#3b82f6",
+            }}
+          >
+            {(() => {
+              const iconName = (groupIcon || "users").toLowerCase();
+              const iconClass = "w-3 h-3 text-white";
+              switch (iconName) {
+                case "users":
+                  return <FeatherUsers className={iconClass} />;
+                case "user":
+                  return <FeatherUser className={iconClass} />;
+                case "component":
+                  return <FeatherComponent className={iconClass} />;
+                case "syringe":
+                  return <FeatherSyringe className={iconClass} />;
+                case "star":
+                  return <FeatherStar className={iconClass} />;
+                case "heart":
+                  return <FeatherHeart className={iconClass} />;
+                case "shield":
+                  return <FeatherShield className={iconClass} />;
+                case "settings":
+                  return <FeatherSettings className={iconClass} />;
+                default:
+                  return <FeatherUsers className={iconClass} />;
+              }
+            })()}
+          </div>
+        )}
         {title ? (
           <span className="line-clamp-2 grow shrink-0 basis-0 text-heading-3 font-heading-3 text-default-font">
             {title}

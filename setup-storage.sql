@@ -40,3 +40,4 @@ VALUES (
 
 -- 5. Verificar se o bucket foi criado:
 -- SELECT * FROM storage.buckets WHERE name = 'avatars';
+

@@ -186,3 +186,4 @@ Sidebar:
 - ✅ **Estados visuais** claros e uniformes
 
 **O menu agora tem aparência muito mais polida e profissional!** 🎉
+

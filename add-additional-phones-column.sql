@@ -12,3 +12,4 @@ COMMENT ON COLUMN patients.additional_phones IS 'JSON array of additional phone 
 -- SELECT column_name, data_type, is_nullable 
 -- FROM information_schema.columns 
 -- WHERE table_name = 'patients' AND column_name = 'additional_phones';
+

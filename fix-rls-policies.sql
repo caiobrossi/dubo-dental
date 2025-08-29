@@ -35,3 +35,4 @@ ALTER TABLE patient_groups DISABLE ROW LEVEL SECURITY;
 -- DROP POLICY IF EXISTS "Patient groups are viewable by everyone" ON patient_groups;
 -- DROP POLICY IF EXISTS "Patient groups are insertable by authenticated users" ON patient_groups;
 -- DROP POLICY IF EXISTS "Patient groups are updatable by authenticated users" ON patient_groups;
+

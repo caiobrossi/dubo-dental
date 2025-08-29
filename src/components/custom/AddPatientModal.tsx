@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useState } from "react";
 import { Button } from "@/ui/components/Button";
@@ -15,8 +15,8 @@ import { FeatherPhone } from "@subframe/core";
 import { FeatherPlus } from "@subframe/core";
 import { FeatherUpload } from "@subframe/core";
 import { FeatherX } from "@subframe/core";
-import { useToast } from "../../contexts/ToastContext";
-import { supabase } from "../../lib/supabase";
+import { useToast } from "@/contexts/ToastContext";
+import { supabase } from "@/lib/supabase";
 
 interface AddPatientModalProps {
   open: boolean;

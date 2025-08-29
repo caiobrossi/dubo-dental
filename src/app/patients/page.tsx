@@ -10,7 +10,7 @@ import { SegmentControl } from "@/ui/components/SegmentControl";
 import { Table } from "@/ui/components/Table";
 import { TextField } from "@/ui/components/TextField";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
-import AddPatientModal from "@/ui/components/AddPatientModal";
+import AddPatientModal from "@/components/custom/AddPatientModal";
 import { FeatherChevronDown, FeatherComponent, FeatherEdit2, FeatherMoreHorizontal } from "@subframe/core";
 import { FeatherPlus } from "@subframe/core";
 import { FeatherSearch } from "@subframe/core";
@@ -19,49 +19,76 @@ import { FeatherTrash } from "@subframe/core";
 import { FeatherUser } from "@subframe/core";
 import { FeatherX } from "@subframe/core";
 import * as SubframeCore from "@subframe/core";
-import { supabase, Patient } from "@/lib/supabase";
+import { supabase, Patient, Professional } from "@/lib/supabase";
 import { useToast } from "../../contexts/ToastContext";
+import { useRouter } from "next/navigation";
 
 function PatientListing() {
   const [modalOpen, setModalOpen] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('a-z');
   const { showSuccess, showError } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     loadPatients();
+    loadProfessionals();
   }, []);
 
   useEffect(() => {
     filterPatients();
-  }, [patients, searchTerm]);
+  }, [patients, searchTerm, selectedProfessional, sortBy]);
 
   const filterPatients = () => {
-    if (!searchTerm.trim()) {
-      setFilteredPatients(patients);
-      return;
+    let filtered = patients;
+    
+    // Filter by professional
+    if (selectedProfessional !== 'all') {
+      filtered = filtered.filter(patient => patient.professional_id === selectedProfessional);
     }
-
-    const term = searchTerm.toLowerCase().trim();
-    const filtered = patients.filter(patient => {
-      // Filter by name
-      if (patient.name?.toLowerCase().includes(term)) return true;
-      
-      // Filter by ID
-      if (patient.id?.toLowerCase().includes(term)) return true;
-      
-      // Filter by date of birth
-      if (patient.date_of_birth) {
-        const dob = new Date(patient.date_of_birth).toLocaleDateString('pt-BR');
-        if (dob.includes(term)) return true;
+    
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(patient => {
+        // Filter by name
+        if (patient.name?.toLowerCase().includes(term)) return true;
+        
+        // Filter by ID
+        if (patient.id?.toLowerCase().includes(term)) return true;
+        
+        // Filter by date of birth
+        if (patient.date_of_birth) {
+          const dob = new Date(patient.date_of_birth).toLocaleDateString('pt-BR');
+          if (dob.includes(term)) return true;
+        }
+        
+        return false;
+      });
+    }
+    
+    // Sort patients
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'a-z':
+          return (a.name || '').localeCompare(b.name || '');
+        case 'z-a':
+          return (b.name || '').localeCompare(a.name || '');
+        case 'newest':
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case 'oldest':
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        default:
+          return 0;
       }
-      
-      return false;
     });
     
-    setFilteredPatients(filtered);
+    setFilteredPatients(sorted);
   };
 
   const loadPatients = async () => {
@@ -86,8 +113,32 @@ function PatientListing() {
     }
   };
 
+  const loadProfessionals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('professionals')
+        .select('id, name, specialty')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setProfessionals(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar profissionais:', error);
+    }
+  };
+
   const handlePatientAdded = () => {
     loadPatients();
+  };
+
+  const getSortDisplayText = (sortOption: string) => {
+    switch (sortOption) {
+      case 'a-z': return 'A to Z';
+      case 'z-a': return 'Z to A';
+      case 'newest': return 'Newest to Oldest';
+      case 'oldest': return 'Oldest to Newest';
+      default: return 'A to Z';
+    }
   };
 
   const getTimeAgo = (date: Date): string => {
@@ -121,63 +172,38 @@ function PatientListing() {
             <SegmentControl.Item active={true}>
               Patient listing
             </SegmentControl.Item>
-            <SegmentControl.Item active={false}>
+            <SegmentControl.Item 
+              active={false}
+              onClick={() => router.push('/patient-groups')}
+            >
               Patient groups
             </SegmentControl.Item>
           </SegmentControl>
-          <SubframeCore.DropdownMenu.Root>
-            <SubframeCore.DropdownMenu.Trigger asChild={true}>
-              <Button
-                disabled={false}
-                variant="brand-primary"
-                size="large"
-                icon={<FeatherPlus />}
-                iconRight={null}
-                loading={false}
-                onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
-              >
-                Add new
-              </Button>
-            </SubframeCore.DropdownMenu.Trigger>
-            <SubframeCore.DropdownMenu.Portal>
-              <SubframeCore.DropdownMenu.Content
-                side="bottom"
-                align="end"
-                sideOffset={4}
-                asChild={true}
-              >
-                <DropdownMenu>
-                  <DropdownMenu.DropdownItem 
-                    icon={<FeatherUser />}
-                    onClick={() => setModalOpen(true)}
-                  >
-                    Add new patient
-                  </DropdownMenu.DropdownItem>
-                  <DropdownMenu.DropdownItem icon={<FeatherComponent />}>
-                    Add new group
-                  </DropdownMenu.DropdownItem>
-                </DropdownMenu>
-              </SubframeCore.DropdownMenu.Content>
-            </SubframeCore.DropdownMenu.Portal>
-          </SubframeCore.DropdownMenu.Root>
+          <Button
+            disabled={false}
+            variant="brand-primary"
+            size="large"
+            icon={<FeatherPlus />}
+            iconRight={null}
+            loading={false}
+            onClick={() => setModalOpen(true)}
+          >
+            Create new patient
+          </Button>
         </div>
         
         <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
           <div className="flex w-full flex-wrap items-center justify-between pb-4">
             <div className="flex items-center gap-4">
-              <span className="text-body-medium text-neutral-600">
-                {filteredPatients.length} de {patients.length} pacientes
-              </span>
-            </div>
-            <div className="flex items-start gap-6">
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
                   <Button
                     variant="neutral-tertiary"
+                    size="large"
                     iconRight={<FeatherChevronDown />}
                     onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
                   >
-                    Sort by: A:Z
+                    Sort by: {getSortDisplayText(sortBy)}
                   </Button>
                 </SubframeCore.DropdownMenu.Trigger>
                 <SubframeCore.DropdownMenu.Portal>
@@ -188,17 +214,25 @@ function PatientListing() {
                     asChild={true}
                   >
                     <DropdownMenu>
-                      <DropdownMenu.DropdownItem>
-                        Favorite
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('a-z')}
+                      >
+                        A to Z
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
-                        Add
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('z-a')}
+                      >
+                        Z to A
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
-                        Edit
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('newest')}
+                      >
+                        Newest to Oldest
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
-                        Delete
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('oldest')}
+                      >
+                        Oldest to Newest
                       </DropdownMenu.DropdownItem>
                     </DropdownMenu>
                   </SubframeCore.DropdownMenu.Content>
@@ -209,10 +243,14 @@ function PatientListing() {
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
                   <Button
                     variant="neutral-tertiary"
+                    size="large"
                     iconRight={<FeatherChevronDown />}
                     onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
                   >
-                    All professionals
+                    {selectedProfessional === 'all' 
+                      ? 'All professionals' 
+                      : professionals.find(p => p.id === selectedProfessional)?.name || 'All professionals'
+                    }
                   </Button>
                 </SubframeCore.DropdownMenu.Trigger>
                 <SubframeCore.DropdownMenu.Portal>
@@ -223,18 +261,25 @@ function PatientListing() {
                     asChild={true}
                   >
                     <DropdownMenu>
-                      <DropdownMenu.DropdownItem>
-                        Favorite
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSelectedProfessional('all')}
+                      >
+                        All professionals
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
-                        Add
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
-                        Edit
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
-                        Delete
-                      </DropdownMenu.DropdownItem>
+                      {professionals.length === 0 ? (
+                        <DropdownMenu.DropdownItem>
+                          Carregando profissionais...
+                        </DropdownMenu.DropdownItem>
+                      ) : (
+                        professionals.map((professional) => (
+                          <DropdownMenu.DropdownItem
+                            key={professional.id}
+                            onClick={() => setSelectedProfessional(professional.id)}
+                          >
+                            {professional.name}
+                          </DropdownMenu.DropdownItem>
+                        ))
+                      )}
                     </DropdownMenu>
                   </SubframeCore.DropdownMenu.Content>
                 </SubframeCore.DropdownMenu.Portal>

@@ -30,3 +30,4 @@ ALTER COLUMN state DROP NOT NULL;
 
 -- ✅ RESULTADO: Campos opcionais sem valores padrão
 -- Os campos ficarão NULL quando não preenchidos
+

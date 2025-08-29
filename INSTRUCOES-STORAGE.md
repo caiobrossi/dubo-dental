@@ -65,3 +65,4 @@ O upload de avatares funcionará perfeitamente! 🎉
 2. Teste o upload de uma imagem
 3. Veja o preview funcionando
 4. Salve o paciente com avatar
+

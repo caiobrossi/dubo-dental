@@ -111,3 +111,4 @@ CREATE POLICY "Patients are insertable by authenticated users" ON patients
 
 CREATE POLICY "Patients are updatable by authenticated users" ON patients
     FOR UPDATE USING (auth.role() = 'authenticated');
+

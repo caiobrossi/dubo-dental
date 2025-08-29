@@ -19,3 +19,4 @@ if (fs.existsSync(envPath)) {
   console.log('❌ Arquivo .env.local NÃO encontrado');
   console.log('📍 Caminho esperado:', envPath);
 }
+

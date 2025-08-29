@@ -7,6 +7,7 @@
  */
 
 import React from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { FeatherBox } from "@subframe/core";
 import { FeatherBuilding } from "@subframe/core";
 import { FeatherCalendar1 } from "@subframe/core";
@@ -35,6 +36,25 @@ const DefaultPageLayoutRoot = React.forwardRef<
   { children, className, ...otherProps }: DefaultPageLayoutRootProps,
   ref
 ) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Function to check if a path is active
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return pathname === '/' || pathname === '/homepage';
+    }
+    if (path === '/patients') {
+      return pathname.startsWith('/patients') || pathname.startsWith('/patient-groups');
+    }
+    return pathname.startsWith(path);
+  };
+
+  // Navigation function
+  const navigateTo = (path: string) => {
+    router.push(path);
+  };
+
   return (
     <div
       className={SubframeUtils.twClassNames(
@@ -89,31 +109,67 @@ const DefaultPageLayoutRoot = React.forwardRef<
           </SubframeCore.Popover.Root>
         }
       >
-        <SidebarWithLargeItems.NavItem icon={<FeatherHome />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherHome />}
+          selected={isActive('/')}
+          onClick={() => navigateTo('/')}
+        >
           Home
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherUsers2 />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherUsers2 />}
+          selected={isActive('/patients')}
+          onClick={() => navigateTo('/patients')}
+        >
           Patients
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherCalendar1 />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherCalendar1 />}
+          selected={isActive('/schedule')}
+          onClick={() => navigateTo('/schedule')}
+        >
           Scheduling
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherMicroscope />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherMicroscope />}
+          selected={isActive('/labs')}
+          onClick={() => navigateTo('/labs')}
+        >
           Labs Order
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherMegaphone />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherMegaphone />}
+          selected={isActive('/marketing')}
+          onClick={() => navigateTo('/marketing')}
+        >
           Marketing
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherChartPie />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherChartPie />}
+          selected={isActive('/reports')}
+          onClick={() => navigateTo('/reports')}
+        >
           Reports
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherBox />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherBox />}
+          selected={isActive('/inventory')}
+          onClick={() => navigateTo('/inventory')}
+        >
           Inventory
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherBuilding />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherBuilding />}
+          selected={isActive('/admin')}
+          onClick={() => navigateTo('/admin')}
+        >
           Admin
         </SidebarWithLargeItems.NavItem>
-        <SidebarWithLargeItems.NavItem icon={<FeatherSettings2 />}>
+        <SidebarWithLargeItems.NavItem 
+          icon={<FeatherSettings2 />}
+          selected={isActive('/settings')}
+          onClick={() => navigateTo('/settings')}
+        >
           Settings
         </SidebarWithLargeItems.NavItem>
       </SidebarWithLargeItems>
