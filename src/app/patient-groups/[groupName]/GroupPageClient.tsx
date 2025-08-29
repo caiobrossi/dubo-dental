@@ -17,6 +17,7 @@ import { FeatherEdit2 } from "@subframe/core";
 import { FeatherMoreHorizontal } from "@subframe/core";
 import { FeatherPlus } from "@subframe/core";
 import { FeatherSearch } from "@subframe/core";
+import { FeatherArrowLeft } from "@subframe/core";
 import { FeatherStar } from "@subframe/core";
 import { FeatherSyringe } from "@subframe/core";
 import { FeatherTrash } from "@subframe/core";
@@ -29,6 +30,7 @@ import * as SubframeCore from "@subframe/core";
 import { useRouter } from "next/navigation";
 import AddPatientModal from "@/components/custom/AddPatientModal";
 import AddNewGroupModal from "@/components/custom/AddNewGroupModal";
+import AddToGroupModal from "@/components/custom/AddToGroupModal";
 import { useToast } from "@/contexts/ToastContext";
 import { supabase, PatientGroup, Patient } from "@/lib/supabase";
 
@@ -45,6 +47,10 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<string>('a-z');
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [addToGroupModalOpen, setAddToGroupModalOpen] = useState(false);
+  const [selectedPatientForGroup, setSelectedPatientForGroup] = useState<Patient | null>(null);
 
   // Formatar o nome do grupo para exibição (remover hífens e capitalizar)
   const displayGroupName = groupName ? groupName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Group';
@@ -129,12 +135,78 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
     loadGroupData();
   }, [groupName]);
 
-  // Filter patients based on search term
-  const filteredPatients = patients.filter(patient =>
-    patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.date_of_birth?.includes(searchTerm)
-  );
+  // Filter and sort patients
+  const filteredPatients = (() => {
+    // First filter by search term
+    const filtered = patients.filter(patient =>
+      patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.date_of_birth?.includes(searchTerm)
+    );
+    
+    // Then sort
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'a-z':
+          return (a.name || '').localeCompare(b.name || '');
+        case 'z-a':
+          return (b.name || '').localeCompare(a.name || '');
+        case 'newest':
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case 'oldest':
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        default:
+          return 0;
+      }
+    });
+    
+    return sorted;
+  })();
+
+  // Handler functions for patient actions
+  const handleEditPatient = (patient: Patient) => {
+    setEditingPatient(patient);
+    setModalOpen(true);
+  };
+
+  const handleAddToGroup = (patient: Patient) => {
+    setSelectedPatientForGroup(patient);
+    setAddToGroupModalOpen(true);
+  };
+
+  const handleDeletePatient = async (patient: Patient) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the patient "${patient.name}"?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('patients')
+        .delete()
+        .eq('id', patient.id);
+
+      if (error) throw error;
+
+      showSuccess("Patient deleted", `${patient.name} has been deleted successfully.`);
+      loadGroupData(); // Reload the patient list
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      showError("Error", "Failed to delete patient");
+    }
+  };
+
+  // Get sort display text
+  const getSortDisplayText = (sortOption: string) => {
+    switch (sortOption) {
+      case 'a-z': return 'A to Z';
+      case 'z-a': return 'Z to A';
+      case 'newest': return 'Newest to Oldest';
+      case 'oldest': return 'Oldest to Newest';
+      default: return 'A to Z';
+    }
+  };
 
   // Get icon component by name
   const getIconComponent = (iconName: string) => {
@@ -227,6 +299,13 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
         
         {/* Group Header with Icon and Color */}
         <div className="flex w-full items-center gap-4 p-4 bg-white rounded-lg border border-gray-200">
+          {/* Back button */}
+          <IconButton
+            size="large"
+            variant="neutral-tertiary"
+            icon={<FeatherArrowLeft />}
+            onClick={() => router.push('/patient-groups')}
+          />
           <div
             className="h-16 w-16 flex-none rounded-full flex items-center justify-center"
             style={{
@@ -259,7 +338,7 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
           </div>
           <div className="flex gap-2">
             <Button
-              size="small"
+              size="large"
               variant="neutral-secondary"
               onClick={() => {
                 console.log('Opening edit modal for group:', group);
@@ -272,16 +351,17 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
         </div>
 
         <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
-          <div className="flex w-full flex-wrap items-center justify-between py-4">
-            <div className="flex items-start gap-6">
+          <div className="flex w-full flex-wrap items-center justify-between pb-4">
+            <div className="flex items-center gap-4">
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
                   <Button
                     variant="neutral-tertiary"
+                    size="large"
                     iconRight={<FeatherChevronDown />}
                     onClick={() => {}}
                   >
-                    Sort by: A:Z
+                    Sort by: {getSortDisplayText(sortBy)}
                   </Button>
                 </SubframeCore.DropdownMenu.Trigger>
                 <SubframeCore.DropdownMenu.Portal>
@@ -292,23 +372,33 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
                     asChild={true}
                   >
                     <DropdownMenu>
-                      <DropdownMenu.DropdownItem>
-                        Favorite
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('a-z')}
+                      >
+                        A to Z
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
-                        Add
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('z-a')}
+                      >
+                        Z to A
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
-                        Edit
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('newest')}
+                      >
+                        Newest to Oldest
                       </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
-                        Delete
+                      <DropdownMenu.DropdownItem
+                        onClick={() => setSortBy('oldest')}
+                      >
+                        Oldest to Newest
                       </DropdownMenu.DropdownItem>
                     </DropdownMenu>
                   </SubframeCore.DropdownMenu.Content>
                 </SubframeCore.DropdownMenu.Portal>
               </SubframeCore.DropdownMenu.Root>
             </div>
+            
+            {/* Search field */}
             <TextField
               className="h-10 w-96 flex-none"
               label=""
@@ -316,11 +406,9 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
               icon={<FeatherSearch />}
             >
               <TextField.Input
-                placeholder="Search by patient name, ID, dob"
+                placeholder="Search patients..."
                 value={searchTerm}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setSearchTerm(event.target.value);
-                }}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
               />
             </TextField>
           </div>
@@ -412,17 +500,23 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
                             asChild={true}
                           >
                             <DropdownMenu>
-                              <DropdownMenu.DropdownItem icon={<FeatherStar />}>
-                                Favorite
+                              <DropdownMenu.DropdownItem 
+                                icon={<FeatherEdit2 />}
+                                onClick={() => handleEditPatient(patient)}
+                              >
+                                Edit patient
                               </DropdownMenu.DropdownItem>
-                              <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
-                                Add
+                              <DropdownMenu.DropdownItem 
+                                icon={<FeatherPlus />}
+                                onClick={() => handleAddToGroup(patient)}
+                              >
+                                Add to a group
                               </DropdownMenu.DropdownItem>
-                              <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
-                                Edit
-                              </DropdownMenu.DropdownItem>
-                              <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
-                                Delete
+                              <DropdownMenu.DropdownItem 
+                                icon={<FeatherTrash />}
+                                onClick={() => handleDeletePatient(patient)}
+                              >
+                                Delete patient
                               </DropdownMenu.DropdownItem>
                             </DropdownMenu>
                           </SubframeCore.DropdownMenu.Content>
@@ -439,10 +533,13 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
 
       <AddPatientModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setEditingPatient(null);
+        }}
+        editingPatient={editingPatient}
         onPatientAdded={() => {
-          loadGroupData(); // Reload group data to show new patient
-          showSuccess("Patient added", "Patient added to group successfully");
+          loadGroupData(); // Reload group data to show updated patient
         }}
       />
 
@@ -453,6 +550,18 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
         onGroupAdded={(updatedGroup) => {
           showSuccess("Group updated", `Group "${updatedGroup.name}" updated successfully!`);
           loadGroupData(); // Reload group data
+        }}
+      />
+
+      <AddToGroupModal
+        open={addToGroupModalOpen}
+        onOpenChange={(open) => {
+          setAddToGroupModalOpen(open);
+          if (!open) setSelectedPatientForGroup(null);
+        }}
+        patient={selectedPatientForGroup}
+        onPatientUpdated={() => {
+          loadGroupData(); // Reload group data to show updated patient
         }}
       />
     </DefaultPageLayout>

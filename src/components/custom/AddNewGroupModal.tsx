@@ -333,7 +333,7 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
   return (
     <DialogLayout open={open} onOpenChange={onOpenChange}>
       <div className="flex w-144 flex-col items-start bg-page-bg mobile:h-auto mobile:w-96 max-h-[95vh] overflow-y-auto">
-        <div className="flex w-full grow shrink-0 basis-0 items-center justify-between border-b border-solid border-neutral-border bg-default-background px-4 py-4">
+        <div className="flex w-full grow shrink-0 basis-0 items-center justify-between border-b border-solid border-neutral-border bg-white/50 backdrop-blur px-4 py-4">
           <span className="grow shrink-0 basis-0 text-heading-2 font-heading-2 text-default-font">
             {editingGroup ? 'Edit Group Information' : 'Create group'}
           </span>
@@ -543,7 +543,7 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
           </div>
           
           {/* Buttons section - same row */}
-          <div className="flex w-full gap-4">
+          <div className="flex w-full gap-4 bg-white/50 backdrop-blur px-4 py-4 border-t border-solid border-neutral-border">
             {editingGroup && (
               <Button
                 className="h-10 flex-1"

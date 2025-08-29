@@ -11,6 +11,7 @@ import { Table } from "@/ui/components/Table";
 import { TextField } from "@/ui/components/TextField";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import AddPatientModal from "@/components/custom/AddPatientModal";
+import AddToGroupModal from "@/components/custom/AddToGroupModal";
 import { FeatherChevronDown, FeatherComponent, FeatherEdit2, FeatherMoreHorizontal } from "@subframe/core";
 import { FeatherPlus } from "@subframe/core";
 import { FeatherSearch } from "@subframe/core";
@@ -32,6 +33,9 @@ function PatientListing() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('a-z');
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [addToGroupModalOpen, setAddToGroupModalOpen] = useState(false);
+  const [selectedPatientForGroup, setSelectedPatientForGroup] = useState<Patient | null>(null);
   const { showSuccess, showError } = useToast();
   const router = useRouter();
 
@@ -129,6 +133,39 @@ function PatientListing() {
 
   const handlePatientAdded = () => {
     loadPatients();
+  };
+
+  const handleEditPatient = (patient: Patient) => {
+    setEditingPatient(patient);
+    setModalOpen(true);
+  };
+
+  const handleAddToGroup = (patient: Patient) => {
+    setSelectedPatientForGroup(patient);
+    setAddToGroupModalOpen(true);
+  };
+
+  const handleDeletePatient = async (patient: Patient) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the patient "${patient.name}"?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('patients')
+        .delete()
+        .eq('id', patient.id);
+
+      if (error) throw error;
+
+      loadPatients();
+      showSuccess("Patient deleted", `Patient "${patient.name}" was deleted successfully.`);
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      showError("Error", "Failed to delete patient");
+    }
   };
 
   const getSortDisplayText = (sortOption: string) => {
@@ -413,13 +450,22 @@ function PatientListing() {
                           asChild={true}
                         >
                           <DropdownMenu>
-                            <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
+                            <DropdownMenu.DropdownItem 
+                              icon={<FeatherEdit2 />}
+                              onClick={() => handleEditPatient(patient)}
+                            >
                               Edit patient
                             </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
+                            <DropdownMenu.DropdownItem 
+                              icon={<FeatherPlus />}
+                              onClick={() => handleAddToGroup(patient)}
+                            >
                               Add to a group
                             </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
+                            <DropdownMenu.DropdownItem 
+                              icon={<FeatherTrash />}
+                              onClick={() => handleDeletePatient(patient)}
+                            >
                               Delete patient
                             </DropdownMenu.DropdownItem>
                           </DropdownMenu>
@@ -436,8 +482,32 @@ function PatientListing() {
       
       <AddPatientModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
-        onPatientAdded={handlePatientAdded}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) {
+            setEditingPatient(null); // Reset editing state when modal closes
+          }
+        }}
+        editingPatient={editingPatient}
+        onPatientAdded={() => {
+          handlePatientAdded();
+          setEditingPatient(null); // Reset editing state
+        }}
+      />
+      
+      <AddToGroupModal
+        open={addToGroupModalOpen}
+        onOpenChange={(open) => {
+          setAddToGroupModalOpen(open);
+          if (!open) {
+            setSelectedPatientForGroup(null); // Reset patient selection when modal closes
+          }
+        }}
+        patient={selectedPatientForGroup}
+        onPatientUpdated={() => {
+          loadPatients();
+          setSelectedPatientForGroup(null); // Reset patient selection
+        }}
       />
     </DefaultPageLayout>
   );

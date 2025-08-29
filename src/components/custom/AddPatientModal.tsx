@@ -1,6 +1,6 @@
  "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/ui/components/Button";
 import { Checkbox } from "@/ui/components/Checkbox";
 import { CheckboxGroup } from "@/ui/components/CheckboxGroup";
@@ -16,15 +16,16 @@ import { FeatherPlus } from "@subframe/core";
 import { FeatherUpload } from "@subframe/core";
 import { FeatherX } from "@subframe/core";
 import { useToast } from "@/contexts/ToastContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, Patient, Professional, PatientGroup } from "@/lib/supabase";
 
 interface AddPatientModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPatientAdded?: () => void;
+  editingPatient?: Patient | null;
 }
 
-function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModalProps) {
+function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }: AddPatientModalProps) {
   // Form state
   const [patientName, setPatientName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -50,7 +51,90 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   
+  // Lists from database
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [groups, setGroups] = useState<PatientGroup[]>([]);
+  
   const { showSuccess, showError } = useToast();
+
+  // Load professionals from database
+  const loadProfessionals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('professionals')
+        .select('id, name, specialty')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setProfessionals(data || []);
+    } catch (error) {
+      console.error('Error loading professionals:', error);
+    }
+  };
+
+  // Load groups from database
+  const loadGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patient_groups')
+        .select('id, name, group_color')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setGroups(data || []);
+    } catch (error) {
+      console.error('Error loading groups:', error);
+    }
+  };
+
+  // Load data when modal opens
+  useEffect(() => {
+    if (open) {
+      loadProfessionals();
+      loadGroups();
+    }
+  }, [open]);
+
+  // Effect to populate form when editing
+  useEffect(() => {
+    if (editingPatient) {
+      setPatientName(editingPatient.name || "");
+      setDateOfBirth(editingPatient.date_of_birth || "");
+      setGender(editingPatient.gender || "");
+      setPreferredLanguage(editingPatient.preferred_language || "");
+      setClinicBranch(editingPatient.clinic_branch || "");
+      setReferralSource(editingPatient.referral_source || "");
+      setEmail(editingPatient.email || "");
+      setMobile(editingPatient.mobile || "");
+      setContactTime(editingPatient.preferred_contact_time || []);
+      setAddress(editingPatient.address || "");
+      setPostCode(editingPatient.post_code || "");
+      setCity(editingPatient.city || "");
+      setState(editingPatient.state || "");
+      setInsuranceName(editingPatient.insurance_name || "");
+      setInsurancePlan(editingPatient.insurance_plan || "");
+      setInsuranceId(editingPatient.insurance_id || "");
+      setValidUntil(editingPatient.insurance_valid_until || "");
+      setProfessional(editingPatient.professional_id || "");
+      setPatientGroups(editingPatient.group_id || "");
+      
+      if (editingPatient.avatar_url) {
+        setAvatarPreview(editingPatient.avatar_url);
+      }
+      
+      // Parse additional phones if they exist
+      if (editingPatient.additional_phones) {
+        try {
+          const phones = JSON.parse(editingPatient.additional_phones);
+          setAlternativePhones(Array.isArray(phones) ? phones : [""]);
+        } catch (e) {
+          setAlternativePhones([""]);
+        }
+      } else {
+        setAlternativePhones([""]);
+      }
+    }
+  }, [editingPatient]);
 
   const handleContactTimeChange = (time: string, checked: boolean) => {
     if (checked) {
@@ -188,20 +272,41 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
         patientData.preferred_contact_time = contactTime;
       }
 
-      // Inserir no Supabase
-      console.log("Attempting to insert patient data:", patientData);
-      const { data, error } = await supabase.from("patients").insert([patientData]).select();
+      // Inserir ou atualizar no Supabase
+      console.log("Attempting to save patient data:", patientData);
+      let result;
+      if (editingPatient) {
+        // Update existing patient
+        result = await supabase
+          .from("patients")
+          .update(patientData)
+          .eq('id', editingPatient.id)
+          .select();
+      } else {
+        // Create new patient
+        result = await supabase
+          .from("patients")
+          .insert([patientData])
+          .select();
+      }
+      const { data, error } = result;
 
       if (error) {
-        console.error("Error creating patient:", error);
-        showError("Erro ao criar paciente", error.message);
+        console.error(`Error ${editingPatient ? 'updating' : 'creating'} patient:`, error);
+        showError(
+          editingPatient ? "Erro ao atualizar paciente" : "Erro ao criar paciente", 
+          error.message
+        );
         return;
       }
       
-      console.log("Patient created successfully:", data);
+      console.log(`Patient ${editingPatient ? 'updated' : 'created'} successfully:`, data);
 
       // Sucesso!
-      showSuccess("Paciente adicionado", `${patientName} foi adicionado com sucesso`);
+      showSuccess(
+        editingPatient ? "Paciente atualizado" : "Paciente adicionado", 
+        `${patientName} foi ${editingPatient ? 'atualizado' : 'adicionado'} com sucesso`
+      );
       
       // Limpar formulário
       clearAll();
@@ -223,11 +328,11 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
 
   return (
     <DialogLayout open={open} onOpenChange={onOpenChange}>
-      <div className="flex h-full w-320 flex-col items-start bg-page-bg relative">
+      <div className="flex h-full w-320 flex-col items-start bg-transparent relative">
         {/* Header Fixo */}
-        <div className="flex w-full shrink-0 items-center justify-between border-b border-solid border-neutral-border bg-default-background px-4 py-4 sticky top-0 z-10">
+        <div className="flex w-full shrink-0 items-center justify-between border-b border-solid border-neutral-border bg-white/50 backdrop-blur px-4 py-4 sticky top-0 z-10">
           <span className="text-heading-2 font-heading-2 text-default-font">
-            Create new patient
+            {editingPatient ? "Edit Patient Information" : "Create new patient"}
           </span>
           <IconButton
             disabled={false}
@@ -237,7 +342,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
         </div>
         
         {/* Conteúdo com Overflow */}
-        <div className="flex w-full grow items-start gap-6 bg-page-bg px-6 py-6 pb-24 overflow-y-auto">
+        <div className="flex w-full grow items-start gap-6 bg-transparent px-6 py-6 pb-24 overflow-y-auto">
           <div className="flex grow shrink-0 basis-0 flex-col items-start gap-6 self-stretch">
             <div className="flex w-full flex-col items-start gap-2">
               <div className="flex w-full items-center gap-2">
@@ -769,9 +874,11 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
                   value={professional}
                   onValueChange={(value: string) => setProfessional(value)}
                 >
-                  <Select.Item value="dr-smith">Dr. Smith</Select.Item>
-                  <Select.Item value="dr-johnson">Dr. Johnson</Select.Item>
-                  <Select.Item value="dr-williams">Dr. Williams</Select.Item>
+                  {professionals.map((prof) => (
+                    <Select.Item key={prof.id} value={prof.id || ""}>
+                      {prof.name} {prof.specialty && `- ${prof.specialty}`}
+                    </Select.Item>
+                  ))}
                 </Select>
               </div>
             </div>
@@ -793,9 +900,11 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
                   value={patientGroups}
                   onValueChange={(value: string) => setPatientGroups(value)}
                 >
-                  <Select.Item value="vip">VIP Patients</Select.Item>
-                  <Select.Item value="regular">Regular Patients</Select.Item>
-                  <Select.Item value="emergency">Emergency Patients</Select.Item>
+                  {groups.map((group) => (
+                    <Select.Item key={group.id} value={group.id || ""}>
+                      {group.name}
+                    </Select.Item>
+                  ))}
                 </Select>
               </div>
             </div>
@@ -803,7 +912,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
         </div>
         
         {/* Footer Fixo */}
-        <div className="flex w-full shrink-0 items-start justify-between border-t border-solid border-neutral-border bg-default-background px-4 py-4 sticky bottom-0 z-10">
+        <div className="flex w-full shrink-0 items-start justify-between border-t border-solid border-neutral-border bg-white/50 backdrop-blur px-4 py-4 sticky bottom-0 z-10">
           <Button
             disabled={isLoading}
             variant="destructive-tertiary"
@@ -827,7 +936,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded }: AddPatientModal
               savePatient();
             }}
           >
-            Save Patient
+            {editingPatient ? "Update Patient" : "Save Patient"}
           </Button>
         </div>
       </div>
