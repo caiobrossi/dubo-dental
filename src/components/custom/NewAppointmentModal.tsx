@@ -1,0 +1,479 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Button } from "@/ui/components/Button";
+import { IconButton } from "@/ui/components/IconButton";
+import { LinkButton } from "@/ui/components/LinkButton";
+import { SegmentControl } from "@/ui/components/SegmentControl";
+import { Select } from "@/ui/components/Select";
+import { Switch } from "@/ui/components/Switch";
+import { TextField } from "@/ui/components/TextField";
+import { DialogLayout } from "@/ui/layouts/DialogLayout";
+import { FeatherSearch } from "@subframe/core";
+import { FeatherX } from "@subframe/core";
+import { supabase, Patient, Professional } from "@/lib/supabase";
+import { SearchableSelect } from "./SearchableSelect";
+
+interface NewAppointmentModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAppointmentCreated?: () => void;
+  preSelectedDate?: Date;
+  preSelectedTime?: string;
+  initialType?: 'appointment' | 'blocked';
+}
+
+function NewAppointmentModal({ 
+  open, 
+  onOpenChange, 
+  onAppointmentCreated,
+  preSelectedDate,
+  preSelectedTime,
+  initialType = 'appointment'
+}: NewAppointmentModalProps) {
+  const [appointmentType, setAppointmentType] = useState<'appointment' | 'blocked'>(initialType);
+  const [formData, setFormData] = useState({
+    patient_id: "",
+    professional_id: "",
+    room: "",
+    procedure_type: "first_time",
+    duration_minutes: "30",
+    appointment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    start_time: preSelectedTime || "14:00",
+    notes: "",
+    send_reminders: true,
+    notify_cancellation: false
+  });
+
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setAppointmentType(initialType);
+  }, [initialType]);
+
+  useEffect(() => {
+    if (open) {
+      fetchPatientsAndProfessionals();
+      // Update date and time if pre-selected
+      if (preSelectedDate) {
+        setFormData(prev => ({
+          ...prev,
+          appointment_date: preSelectedDate.toISOString().split('T')[0]
+        }));
+      }
+      if (preSelectedTime) {
+        setFormData(prev => ({
+          ...prev,
+          start_time: preSelectedTime
+        }));
+      }
+    }
+  }, [open, preSelectedDate, preSelectedTime]);
+
+  const fetchPatientsAndProfessionals = async () => {
+    try {
+      const { data: patientsData } = await supabase
+        .from('patients')
+        .select('id, name')
+        .order('name');
+      
+      const { data: professionalsData } = await supabase
+        .from('professionals')
+        .select('id, name')
+        .order('name');
+
+      setPatients(patientsData || []);
+      setProfessionals(professionalsData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  // Calculate end time based on start time and duration
+  const calculateEndTime = (startTime: string, duration: string) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const durationMinutes = parseInt(duration);
+    const totalMinutes = hours * 60 + minutes + durationMinutes;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      console.log('Starting appointment creation...', { appointmentType, formData });
+
+      if (appointmentType === 'blocked') {
+        // Create blocked time
+        const { error } = await supabase
+          .from('blocked_times')
+          .insert([{
+            professional_id: formData.professional_id,
+            professional_name: professionals.find(p => p.id === formData.professional_id)?.name,
+            date: formData.appointment_date,
+            start_time: formData.start_time,
+            end_time: calculateEndTime(formData.start_time, formData.duration_minutes),
+            reason: formData.notes || 'Blocked time'
+          }]);
+
+        if (error) {
+          console.error('Error creating blocked time:', error);
+          throw error;
+        }
+        console.log('Blocked time created successfully');
+      } else {
+        // Validate required fields for appointment
+        if (!formData.patient_id || !formData.professional_id) {
+          console.error('Validation failed: missing patient or professional');
+          alert('Please select a patient and professional');
+          return;
+        }
+
+        console.log('Validation passed, creating appointment...');
+
+        // Create appointment
+        const selectedPatient = patients.find(p => p.id === formData.patient_id);
+        const selectedProfessional = professionals.find(p => p.id === formData.professional_id);
+
+        console.log('Selected patient:', selectedPatient);
+        console.log('Selected professional:', selectedProfessional);
+
+        const appointmentData = {
+          patient_id: formData.patient_id,
+          patient_name: selectedPatient?.name,
+          professional_id: formData.professional_id,
+          professional_name: selectedProfessional?.name,
+          appointment_date: formData.appointment_date,
+          start_time: formData.start_time,
+          end_time: calculateEndTime(formData.start_time, formData.duration_minutes),
+          duration_minutes: parseInt(formData.duration_minutes),
+          appointment_type: formData.procedure_type,
+          status: 'scheduled',
+          notes: formData.notes
+        };
+
+        console.log('Appointment data to insert:', appointmentData);
+
+        const { error } = await supabase
+          .from('appointments')
+          .insert([appointmentData]);
+
+        if (error) {
+          console.error('Error creating appointment:', error);
+          throw error;
+        }
+        console.log('Appointment created successfully');
+      }
+
+      onAppointmentCreated?.();
+      onOpenChange(false);
+      
+      // Reset form
+      setFormData({
+        patient_id: "",
+        professional_id: "",
+        room: "",
+        procedure_type: "first_time",
+        duration_minutes: "30",
+        appointment_date: new Date().toISOString().split('T')[0],
+        start_time: "14:00",
+        notes: "",
+        send_reminders: true,
+        notify_cancellation: false
+      });
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      alert('Error creating appointment. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate time options
+  const timeOptions = [];
+  for (let h = 8; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const hour = h.toString().padStart(2, '0');
+      const minute = m.toString().padStart(2, '0');
+      const time24 = `${hour}:${minute}`;
+      const hour12 = h > 12 ? h - 12 : h;
+      const period = h >= 12 ? 'pm' : 'am';
+      const label = `${hour12}:${minute}${period}`;
+      timeOptions.push({ value: time24, label });
+    }
+  }
+
+  return (
+    <DialogLayout open={open} onOpenChange={onOpenChange}>
+      <div className="flex w-full flex-col items-start mobile:h-auto mobile:w-96">
+        <div className="flex w-full grow shrink-0 basis-0 items-center justify-between border-b border-solid border-neutral-border bg-default-background px-4 py-4">
+          <SegmentControl
+            className="h-10 w-auto flex-none"
+            variant="default"
+          >
+            <SegmentControl.Item 
+              active={appointmentType === 'appointment'}
+              onClick={() => setAppointmentType('appointment')}
+            >
+              Appointment
+            </SegmentControl.Item>
+            <SegmentControl.Item 
+              active={appointmentType === 'blocked'}
+              onClick={() => setAppointmentType('blocked')}
+            >
+              Blocked time
+            </SegmentControl.Item>
+          </SegmentControl>
+          <IconButton
+            disabled={false}
+            icon={<FeatherX />}
+            onClick={() => onOpenChange(false)}
+          />
+        </div>
+        <div className="flex w-full flex-col items-start gap-8 bg-neutral-50 px-4 py-4 mobile:flex-col mobile:flex-nowrap mobile:gap-6">
+          <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
+            {appointmentType === 'appointment' && (
+              <div className="flex h-12 w-full flex-none items-center justify-between py-2">
+                <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                  Patient name
+                </span>
+                <SearchableSelect
+                  options={patients.map(p => ({ id: p.id!, name: p.name! }))}
+                  value={formData.patient_id}
+                  onValueChange={(value) => setFormData({...formData, patient_id: value})}
+                  placeholder="Search patient..."
+                  disabled={false}
+                  className="grow shrink-0 basis-0"
+                />
+              </div>
+            )}
+            
+            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                Professional
+              </span>
+              <Select
+                className="h-10 grow shrink-0 basis-0"
+                disabled={false}
+                error={false}
+                label=""
+                placeholder="Select professional"
+                helpText=""
+                icon={null}
+                value={formData.professional_id}
+                onValueChange={(value: string) => setFormData({...formData, professional_id: value})}
+              >
+                {professionals.map((prof) => (
+                  <Select.Item key={prof.id} value={prof.id!}>
+                    {prof.name}
+                  </Select.Item>
+                ))}
+              </Select>
+            </div>
+            
+            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                Room
+              </span>
+              <Select
+                className="h-10 grow shrink-0 basis-0"
+                disabled={false}
+                error={false}
+                label=""
+                placeholder="Select room"
+                helpText=""
+                icon={null}
+                value={formData.room}
+                onValueChange={(value: string) => setFormData({...formData, room: value})}
+              >
+                <Select.Item value="room1">Room 1</Select.Item>
+                <Select.Item value="room2">Room 2</Select.Item>
+                <Select.Item value="room3">Room 3</Select.Item>
+                <Select.Item value="room4">Room 4</Select.Item>
+              </Select>
+            </div>
+            
+            {appointmentType === 'appointment' && (
+              <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                  Procedure type
+                </span>
+                <Select
+                  className="h-10 grow shrink-0 basis-0"
+                  disabled={false}
+                  error={false}
+                  label=""
+                  placeholder="First time"
+                  helpText=""
+                  icon={null}
+                  value={formData.procedure_type}
+                  onValueChange={(value: string) => setFormData({...formData, procedure_type: value})}
+                >
+                  <Select.Item value="first_time">First time</Select.Item>
+                  <Select.Item value="consultation">Consultation</Select.Item>
+                  <Select.Item value="cleaning">Cleaning</Select.Item>
+                  <Select.Item value="treatment">Treatment</Select.Item>
+                  <Select.Item value="follow_up">Follow up</Select.Item>
+                </Select>
+              </div>
+            )}
+            
+            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                Duration
+              </span>
+              <Select
+                className="h-10 grow shrink-0 basis-0"
+                disabled={false}
+                error={false}
+                label=""
+                placeholder="30 min"
+                helpText=""
+                icon={null}
+                value={formData.duration_minutes}
+                onValueChange={(value: string) => setFormData({...formData, duration_minutes: value})}
+              >
+                <Select.Item value="15">15 min</Select.Item>
+                <Select.Item value="30">30 min</Select.Item>
+                <Select.Item value="45">45 min</Select.Item>
+                <Select.Item value="60">1 hour</Select.Item>
+                <Select.Item value="90">1h 30min</Select.Item>
+                <Select.Item value="120">2 hours</Select.Item>
+              </Select>
+            </div>
+            
+            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                Date
+              </span>
+              <TextField
+                className="h-10 grow shrink-0 basis-0"
+                disabled={false}
+                error={false}
+                label=""
+                helpText=""
+                icon={null}
+              >
+                <TextField.Input
+                  type="date"
+                  placeholder=""
+                  value={formData.appointment_date}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                    setFormData({...formData, appointment_date: event.target.value})
+                  }
+                />
+              </TextField>
+            </div>
+            
+            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                Starts on
+              </span>
+              <div className="flex grow shrink-0 basis-0 flex-col items-start gap-2 self-stretch">
+                <Select
+                  className="h-10 w-full flex-none"
+                  disabled={false}
+                  error={false}
+                  label=""
+                  placeholder="2:00pm"
+                  helpText=""
+                  icon={null}
+                  value={formData.start_time}
+                  onValueChange={(value: string) => setFormData({...formData, start_time: value})}
+                >
+                  {timeOptions.map((time) => (
+                    <Select.Item key={time.value} value={time.value}>
+                      {time.label}
+                    </Select.Item>
+                  ))}
+                </Select>
+                <LinkButton
+                  disabled={false}
+                  variant="brand"
+                  size="medium"
+                  icon={null}
+                  iconRight={null}
+                  onClick={() => console.log('Find available time')}
+                >
+                  Find available time
+                </LinkButton>
+              </div>
+            </div>
+            
+            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                Add notes (optional)
+              </span>
+              <TextField
+                className="h-10 grow shrink-0 basis-0"
+                disabled={false}
+                error={false}
+                label=""
+                helpText=""
+                icon={null}
+              >
+                <TextField.Input
+                  placeholder=""
+                  value={formData.notes}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                    setFormData({...formData, notes: event.target.value})
+                  }
+                />
+              </TextField>
+            </div>
+            
+            {appointmentType === 'appointment' && (
+              <>
+                <div className="flex h-14 w-full flex-none items-center justify-between py-2">
+                  <span className="grow shrink-0 basis-0 text-body-medium font-body-medium text-subtext-color">
+                    Send automatic appointment confirmation and reminders
+                  </span>
+                  <Switch
+                    checked={formData.send_reminders}
+                    onCheckedChange={(checked: boolean) => 
+                      setFormData({...formData, send_reminders: checked})
+                    }
+                  />
+                </div>
+                <div className="flex h-14 w-full flex-none items-center justify-between py-2">
+                  <span className="grow shrink-0 basis-0 text-body-medium font-body-medium text-subtext-color">
+                    Notify if a cancellation frees up this slot
+                  </span>
+                  <Switch
+                    checked={formData.notify_cancellation}
+                    onCheckedChange={(checked: boolean) => 
+                      setFormData({...formData, notify_cancellation: checked})
+                    }
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <Button
+            className="h-10 w-full flex-none"
+            disabled={loading}
+            variant="brand-primary"
+            size="large"
+            icon={null}
+            iconRight={null}
+            loading={loading}
+            onClick={handleSubmit}
+          >
+            {loading 
+              ? "Creating..." 
+              : appointmentType === 'blocked' 
+                ? "Block time" 
+                : "Create appointment"
+            }
+          </Button>
+        </div>
+      </div>
+    </DialogLayout>
+  );
+}
+
+export default NewAppointmentModal;
