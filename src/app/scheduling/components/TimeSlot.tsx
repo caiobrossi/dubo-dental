@@ -92,6 +92,10 @@ export const TimeSlot = memo<TimeSlotProps>(({
   const handleSlotClick = () => {
     if (!hasContent) {
       onSlotClick(date, hour);
+    } else if (isBlockedSlot && blockedTimes.length === 0) {
+      // This is a blocked slot but no blocked time data - treat as new blocked time creation
+      console.log('Blocked slot clicked without data - opening blocked time modal for', date, hour);
+      onSlotClick(date, hour);
     }
   };
 
@@ -132,7 +136,7 @@ export const TimeSlot = memo<TimeSlotProps>(({
         isFirstBlockedSlot(date, hour, blockedTime) ? (
           <div
             key={`blocked-${blockedTime.id}`}
-            className="w-full text-xs"
+            className="w-full text-xs cursor-pointer"
             onClick={(e) => handleBlockedTimeClick(e, blockedTime)}
           >
             <div className="flex items-center justify-between">

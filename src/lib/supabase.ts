@@ -136,3 +136,14 @@ export interface BlockedTime {
   created_at?: string
   updated_at?: string
 }
+
+// Tipos para chairs and rooms
+export interface ChairRoom {
+  id?: string
+  name: string
+  type: 'chair' | 'room'
+  assigned_professionals: string[]
+  clinic_id?: string
+  created_at?: string
+  updated_at?: string
+}

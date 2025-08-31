@@ -33,7 +33,7 @@ function PatientListing() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('a-z');
+  const [sortBy, setSortBy] = useState<string>('newest');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [addToGroupModalOpen, setAddToGroupModalOpen] = useState(false);
   const [selectedPatientForGroup, setSelectedPatientForGroup] = useState<Patient | null>(null);

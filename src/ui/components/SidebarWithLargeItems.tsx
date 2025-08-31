@@ -5,9 +5,10 @@
  */
 
 import React from "react";
-import { FeatherPlus } from "@subframe/core";
+import { FeatherPlus, FeatherPanelLeftClose } from "@subframe/core";
 import * as SubframeCore from "@subframe/core";
 import * as SubframeUtils from "../utils";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 interface NavItemProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: React.ReactNode;
@@ -87,6 +88,15 @@ const SidebarWithLargeItemsRoot = React.forwardRef<
   }: SidebarWithLargeItemsRootProps,
   ref
 ) {
+  // Use try-catch to handle context outside provider
+  let toggleSidebar = () => {};
+  try {
+    const sidebarContext = useSidebar();
+    toggleSidebar = sidebarContext.toggleSidebar;
+  } catch (e) {
+    // Context not available, use empty function
+  }
+
   return (
     <nav
       className={SubframeUtils.twClassNames(
@@ -101,6 +111,18 @@ const SidebarWithLargeItemsRoot = React.forwardRef<
           {header}
         </div>
       ) : null}
+      
+      {/* Collapse button positioned to align with page header */}
+      <div className="flex w-full justify-end px-4 -mt-2 mb-4">
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-md hover:bg-neutral-100 text-neutral-500 hover:text-neutral-700 transition-colors"
+          title="Collapse sidebar"
+        >
+          <FeatherPanelLeftClose className="text-[18px]" />
+        </button>
+      </div>
+      
       {children ? (
         <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-1 px-4 py-4 overflow-auto">
           {children}

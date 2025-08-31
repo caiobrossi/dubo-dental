@@ -14,7 +14,7 @@ import { FeatherX } from "@subframe/core";
 import { supabase, Patient, Professional } from "@/lib/supabase";
 import { SearchableSelect } from "./SearchableSelect";
 import { preparePatientNameForStorage } from "@/app/scheduling/utils/nameUtils";
-import { Appointment } from "@/app/scheduling/types";
+import { Appointment, BlockedTime } from "@/app/scheduling/types";
 
 interface NewAppointmentModalProps {
   open: boolean;
@@ -24,6 +24,7 @@ interface NewAppointmentModalProps {
   preSelectedTime?: string;
   initialType?: 'appointment' | 'blocked';
   editingAppointment?: Appointment | null;
+  editingBlockedTime?: BlockedTime | null;
 }
 
 function NewAppointmentModal({ 
@@ -33,7 +34,8 @@ function NewAppointmentModal({
   preSelectedDate,
   preSelectedTime,
   initialType = 'appointment',
-  editingAppointment
+  editingAppointment,
+  editingBlockedTime
 }: NewAppointmentModalProps) {
   const [appointmentType, setAppointmentType] = useState<'appointment' | 'blocked'>(initialType);
   const [formData, setFormData] = useState({
@@ -74,6 +76,7 @@ function NewAppointmentModal({
         const endMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
         const duration = endMinutes - startMinutes;
         
+        setAppointmentType('appointment');
         setFormData({
           patient_id: editingAppointment.patient_id || "",
           professional_id: editingAppointment.professional_id || "",
@@ -88,6 +91,25 @@ function NewAppointmentModal({
           notify_cancellation: false,
           // Campos específicos para blocked time
           reason: "",
+          repeat: false
+        });
+      } else if (editingBlockedTime) {
+        // If editing a blocked time, populate form with blocked time data
+        setAppointmentType('blocked');
+        setFormData({
+          patient_id: "",
+          professional_id: editingBlockedTime.professional_id || "",
+          room: "",
+          procedure_type: "first_time",
+          duration_minutes: "30",
+          appointment_date: editingBlockedTime.date,
+          start_time: editingBlockedTime.start_time,
+          end_time: editingBlockedTime.end_time,
+          notes: "",
+          send_reminders: false,
+          notify_cancellation: false,
+          // Campos específicos para blocked time
+          reason: editingBlockedTime.reason || "",
           repeat: false
         });
       } else {
@@ -110,7 +132,7 @@ function NewAppointmentModal({
         });
       }
     }
-  }, [open, preSelectedDate, preSelectedTime, editingAppointment]);
+  }, [open, preSelectedDate, preSelectedTime, editingAppointment, editingBlockedTime]);
 
   const fetchPatientsAndProfessionals = async () => {
     try {
@@ -142,6 +164,42 @@ function NewAppointmentModal({
     const endMinutes = totalMinutes % 60;
     
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  };
+
+  const handleDeleteBlockedTime = async () => {
+    if (!editingBlockedTime) return;
+    
+    if (!window.confirm(`Are you sure you want to delete this blocked time?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('blocked_times')
+        .delete()
+        .eq('id', editingBlockedTime.id);
+
+      if (error) {
+        console.error('Error deleting blocked time:', error);
+        alert('Error deleting blocked time. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Blocked time deleted successfully');
+      
+      if (onAppointmentCreated) {
+        onAppointmentCreated();
+      }
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error deleting blocked time:', error);
+      alert('Error deleting blocked time. Please try again.');
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -178,7 +236,7 @@ function NewAppointmentModal({
         // Ensure end_time is set
         const endTime = formData.end_time || calculateEndTime(formData.start_time, "60");
         
-        console.log('Creating blocked time with data:', {
+        console.log(editingBlockedTime ? 'Updating blocked time with data:' : 'Creating blocked time with data:', {
           professional_id: formData.professional_id,
           professional_name: selectedProfessional.name,
           date: formData.appointment_date,
@@ -187,21 +245,45 @@ function NewAppointmentModal({
           reason: formData.reason || 'Blocked time'
         });
 
-        // Create blocked time
-        const { error, data } = await supabase
-          .from('blocked_times')
-          .insert([{
-            professional_id: formData.professional_id,
-            professional_name: selectedProfessional.name,
-            date: formData.appointment_date,
-            start_time: formData.start_time,
-            end_time: endTime,
-            reason: formData.reason || 'Blocked time'
-          }])
-          .select();
+        // Create or update blocked time
+        let error, data;
+        if (editingBlockedTime) {
+          // Update existing blocked time
+          const result = await supabase
+            .from('blocked_times')
+            .update({
+              professional_id: formData.professional_id,
+              professional_name: selectedProfessional.name,
+              date: formData.appointment_date,
+              start_time: formData.start_time,
+              end_time: endTime,
+              reason: formData.reason || 'Blocked time'
+            })
+            .eq('id', editingBlockedTime.id)
+            .select();
+          
+          error = result.error;
+          data = result.data;
+        } else {
+          // Create new blocked time
+          const result = await supabase
+            .from('blocked_times')
+            .insert([{
+              professional_id: formData.professional_id,
+              professional_name: selectedProfessional.name,
+              date: formData.appointment_date,
+              start_time: formData.start_time,
+              end_time: endTime,
+              reason: formData.reason || 'Blocked time'
+            }])
+            .select();
+          
+          error = result.error;
+          data = result.data;
+        }
 
         if (error) {
-          console.error('Error creating blocked time:', error);
+          console.error(editingBlockedTime ? 'Error updating blocked time:' : 'Error creating blocked time:', error);
           
           // Provide specific error messages
           if (error.message?.includes('Conflito de horário')) {
@@ -209,14 +291,14 @@ function NewAppointmentModal({
           } else if (error.message?.includes('violates foreign key constraint')) {
             alert('Invalid professional selected. Please try refreshing the page.');
           } else {
-            alert(`Error creating blocked time: ${error.message || 'Unknown error'}`);
+            alert(`Error ${editingBlockedTime ? 'updating' : 'creating'} blocked time: ${error.message || 'Unknown error'}`);
           }
           
           setLoading(false);
           return;
         }
         
-        console.log('Blocked time created successfully:', data);
+        console.log(editingBlockedTime ? 'Blocked time updated successfully:' : 'Blocked time created successfully:', data);
       } else {
         // Validate required fields for appointment
         if (!formData.patient_id || !formData.professional_id) {
@@ -703,23 +785,36 @@ function NewAppointmentModal({
             )}
           </div>
           
-          <Button
-            className="h-10 w-full flex-none"
-            disabled={loading}
-            variant="brand-primary"
-            size="large"
-            icon={null}
-            iconRight={null}
-            loading={loading}
-            onClick={handleSubmit}
-          >
-            {loading 
-              ? (editingAppointment ? "Updating..." : "Creating...")
-              : appointmentType === 'blocked' 
-                ? "Block time" 
-                : (editingAppointment ? "Update appointment" : "Create appointment")
-            }
-          </Button>
+          <div className="flex w-full gap-2">
+            {editingBlockedTime && (
+              <Button
+                className="h-10 flex-1"
+                disabled={loading}
+                variant="brand-destructive"
+                size="large"
+                onClick={handleDeleteBlockedTime}
+              >
+                {loading ? "Deleting..." : "Delete"}
+              </Button>
+            )}
+            <Button
+              className={`h-10 ${editingBlockedTime ? 'flex-1' : 'w-full'} flex-none`}
+              disabled={loading}
+              variant="brand-primary"
+              size="large"
+              icon={null}
+              iconRight={null}
+              loading={loading}
+              onClick={handleSubmit}
+            >
+              {loading 
+                ? (editingAppointment ? "Updating..." : editingBlockedTime ? "Updating..." : "Creating...")
+                : appointmentType === 'blocked' 
+                  ? (editingBlockedTime ? "Update blocked time" : "Block time") 
+                  : (editingAppointment ? "Update appointment" : "Create appointment")
+              }
+            </Button>
+          </div>
         </div>
       </div>
     </DialogLayout>

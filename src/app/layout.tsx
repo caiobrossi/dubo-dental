@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { ToastProvider } from "../contexts/ToastContext";
+import { SidebarProvider } from "../contexts/SidebarContext";
 
 export const metadata: Metadata = {
   title: "Subframe Next.js Starter",
@@ -44,9 +45,11 @@ export default function RootLayout({
       </head>
 
       <body>
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <SidebarProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </SidebarProvider>
       </body>
     </html>
   );

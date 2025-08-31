@@ -36,6 +36,7 @@ const SchedulingPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingBlockedTime, setEditingBlockedTime] = useState<BlockedTime | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
 
   // Debug logging
@@ -50,6 +51,7 @@ const SchedulingPage: React.FC = () => {
     error, 
     refreshData 
   } = useSchedulingData(selectedDate, viewMode);
+
 
   // Hook for search - reactivating
   const { 
@@ -71,6 +73,7 @@ const SchedulingPage: React.FC = () => {
   const closeModal = useCallback(() => {
     originalCloseModal();
     setEditingAppointment(null);
+    setEditingBlockedTime(null);
   }, [originalCloseModal]);
 
   // Navigation hook - reactivating
@@ -119,6 +122,7 @@ const SchedulingPage: React.FC = () => {
     refreshData();
     refreshAllAppointments(); // Also refresh search data
     setEditingAppointment(null); // Clear editing state
+    setEditingBlockedTime(null); // Clear blocked time editing state
   }, [refreshData, refreshAllAppointments]);
 
   const handleAppointmentClick = useCallback((appointment: Appointment) => {
@@ -127,9 +131,9 @@ const SchedulingPage: React.FC = () => {
   }, []);
 
   const handleBlockedTimeClick = useCallback((blockedTime: BlockedTime) => {
-    // TODO: Implement blocked time editing functionality
-    console.log('Edit blocked time:', blockedTime);
-  }, []);
+    setEditingBlockedTime(blockedTime);
+    handleAddClick('blocked');
+  }, [handleAddClick]);
 
   const handleEditAppointment = useCallback((appointment: Appointment) => {
     setEditingAppointment(appointment);
@@ -201,6 +205,7 @@ const SchedulingPage: React.FC = () => {
     );
   }
 
+
   return (
     <DefaultPageLayout>
       <div className="flex h-full w-full flex-col items-start bg-page-bg">
@@ -261,6 +266,7 @@ const SchedulingPage: React.FC = () => {
         preSelectedTime={preSelectedDateTime?.time}
         initialType={modalType}
         editingAppointment={editingAppointment}
+        editingBlockedTime={editingBlockedTime}
       />
     </DefaultPageLayout>
   );

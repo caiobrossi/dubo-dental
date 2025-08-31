@@ -8,6 +8,8 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { CollapsedSidebar } from "../components/CollapsedSidebar";
 import { FeatherBox } from "@subframe/core";
 import { FeatherBuilding } from "@subframe/core";
 import { FeatherCalendar1 } from "@subframe/core";
@@ -38,6 +40,15 @@ const DefaultPageLayoutRoot = React.forwardRef<
 ) {
   const pathname = usePathname();
   const router = useRouter();
+  
+  // Use try-catch to handle context outside provider
+  let isCollapsed = false;
+  try {
+    const sidebarContext = useSidebar();
+    isCollapsed = sidebarContext.isCollapsed;
+  } catch (e) {
+    // Context not available, use default value
+  }
 
   // Function to check if a path is active
   const isActive = (path: string) => {
@@ -64,7 +75,10 @@ const DefaultPageLayoutRoot = React.forwardRef<
       ref={ref}
       {...otherProps}
     >
-      <SidebarWithLargeItems
+      {isCollapsed ? (
+        <CollapsedSidebar className="h-auto flex-none self-stretch mobile:hidden" />
+      ) : (
+        <SidebarWithLargeItems
         className="h-auto w-52 flex-none self-stretch mobile:hidden"
         header={
           <img
@@ -173,6 +187,7 @@ const DefaultPageLayoutRoot = React.forwardRef<
           Settings
         </SidebarWithLargeItems.NavItem>
       </SidebarWithLargeItems>
+      )}
       {children ? (
         <div className="flex grow shrink-0 basis-0 flex-col items-start gap-4 self-stretch overflow-y-auto bg-page-bg">
           {children}

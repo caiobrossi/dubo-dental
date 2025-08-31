@@ -28,7 +28,7 @@ function PatientGroups() {
   const [loading, setLoading] = useState(true);
   const [editingGroup, setEditingGroup] = useState<PatientGroup | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<string>('a-z');
+  const [sortBy, setSortBy] = useState<string>('newest');
 
   // Load groups from database with real patient counts
   const loadGroups = async () => {

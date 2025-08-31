@@ -44,6 +44,8 @@ export const useSchedulingData = (selectedDate: Date, viewMode: ViewMode) => {
 
       console.log('Fetched appointments:', appointmentsResult.data);
       console.log('Total appointments:', appointmentsResult.data?.length);
+      console.log('Fetched blocked times:', blockedTimesResult.data);
+      console.log('Total blocked times:', blockedTimesResult.data?.length);
       
       setAppointments(appointmentsResult.data || []);
       setBlockedTimes(blockedTimesResult.data || []);

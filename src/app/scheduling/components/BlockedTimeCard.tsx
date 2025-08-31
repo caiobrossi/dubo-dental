@@ -4,11 +4,13 @@ import { BlockedTime, AppointmentLayout, LAYOUT_CONSTANTS, timeUtils } from '../
 interface BlockedTimeCardProps {
   blockedTime: BlockedTime;
   layout: AppointmentLayout;
+  onClick?: (blockedTime: BlockedTime) => void;
 }
 
 export const BlockedTimeCard: React.FC<BlockedTimeCardProps> = ({
   blockedTime,
-  layout
+  layout,
+  onClick
 }) => {
   // Determinar quais informações mostrar baseado no tamanho
   const showTime = layout.widthPercentage > 30;
@@ -16,7 +18,8 @@ export const BlockedTimeCard: React.FC<BlockedTimeCardProps> = ({
 
   return (
     <div
-      className="bg-neutral-200 border-l-4 border-neutral-400 px-2 py-1 text-xs absolute overflow-hidden shadow-sm relative"
+      className="bg-neutral-200 border-l-4 border-neutral-400 px-2 py-1 text-xs absolute overflow-hidden shadow-sm relative cursor-pointer hover:bg-neutral-300 transition-colors"
+      onClick={() => onClick?.(blockedTime)}
       style={{
         height: `${layout.height}px`,
         top: `${LAYOUT_CONSTANTS.SLOT_PADDING + layout.topOffset}px`,
