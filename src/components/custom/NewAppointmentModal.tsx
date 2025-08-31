@@ -106,8 +106,11 @@ function NewAppointmentModal({
     const [hours, minutes] = startTime.split(':').map(Number);
     const durationMinutes = parseInt(duration);
     const totalMinutes = hours * 60 + minutes + durationMinutes;
-    const endHours = Math.floor(totalMinutes / 60);
+    
+    // Handle day overflow - if result is >= 24:00, wrap to next day
+    const endHours = Math.floor(totalMinutes / 60) % 24;
     const endMinutes = totalMinutes % 60;
+    
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
   };
 
@@ -223,6 +226,12 @@ function NewAppointmentModal({
 
         if (error) {
           console.error('Error creating appointment:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
           throw error;
         }
         console.log('Appointment created successfully');
@@ -247,9 +256,20 @@ function NewAppointmentModal({
         reason: "",
         repeat: false
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating appointment:', error);
-      alert('Error creating appointment. Please try again.');
+      let errorMessage = error?.message || error?.details || 'Unknown error occurred';
+      
+      // Check for specific database constraint errors
+      if (errorMessage.includes('Conflito de horário')) {
+        if (errorMessage.includes('já existe um agendamento')) {
+          errorMessage = 'This professional already has an appointment at this time. Please select a different time or professional.';
+        } else if (errorMessage.includes('período está bloqueado')) {
+          errorMessage = 'This time period is blocked for the selected professional. Please choose another time.';
+        }
+      }
+      
+      alert(`Error creating appointment:\n\n${errorMessage}`);
     } finally {
       setLoading(false);
     }

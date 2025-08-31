@@ -18,7 +18,9 @@ export const TimeSlotComponent: React.FC<TimeSlotComponentProps> = ({
   onAppointmentClick
 }) => {
   const { hour, appointmentsStartingHere, blockedTimesStartingHere, isOccupied, isBlocked, isLastBlockedSlot } = timeSlot;
-  const isClickable = appointmentsStartingHere.length === 0 && !isOccupied && !isBlocked;
+  // Allow clicking on slots with appointments (for multiple professionals/rooms)
+  // Only block clicks on blocked time slots
+  const isClickable = !isBlocked;
 
   // Get the blocked time information for this slot
   const blockedTimeInfo = blockedTimesStartingHere.length > 0 ? blockedTimesStartingHere[0] : null;
@@ -37,7 +39,7 @@ export const TimeSlotComponent: React.FC<TimeSlotComponentProps> = ({
         ${isBlocked && !isLastBlockedSlot ? '' : 'border-b'} 
         border-solid border-neutral-border 
         pl-2 pr-2 py-1 
-        ${isClickable ? 'hover:bg-neutral-50 cursor-pointer' : ''} 
+        ${isClickable ? 'hover:bg-neutral-50 cursor-pointer' : 'cursor-not-allowed'} 
         relative 
         ${isOccupied && appointmentsStartingHere.length === 0 ? 'bg-neutral-25' : ''}
         ${isBlocked ? 'bg-neutral-100' : ''}

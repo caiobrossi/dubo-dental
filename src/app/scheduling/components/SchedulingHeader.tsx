@@ -1,13 +1,17 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { Button } from "@/ui/components/Button";
 import { TextField } from "@/ui/components/TextField";
 import { FeatherSearch, FeatherPlus } from "@subframe/core";
-import { AppointmentModalType } from '../types';
+import { AppointmentModalType, Appointment } from '../types';
+import { useSchedulingSearch } from '../hooks/useSchedulingSearch';
+import { SearchDropdown } from './SearchDropdown';
 
 interface SchedulingHeaderProps {
   searchTerm: string;
+  appointments: Appointment[];
   onSearchChange: (value: string) => void;
   onAddClick: (type: AppointmentModalType) => void;
+  onAppointmentSelect: (appointment: Appointment) => void;
 }
 
 /**
@@ -15,11 +19,40 @@ interface SchedulingHeaderProps {
  */
 export const SchedulingHeader = memo<SchedulingHeaderProps>(({
   searchTerm,
+  appointments,
   onSearchChange,
-  onAddClick
+  onAddClick,
+  onAppointmentSelect
 }) => {
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const { searchAppointments, isOpen, openDropdown, closeDropdown } = useSchedulingSearch(appointments);
+  const [searchResults, setSearchResults] = useState<ReturnType<typeof searchAppointments>>([]);
+
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onSearchChange(event.target.value);
+    const value = event.target.value;
+    onSearchChange(value);
+    
+    // Update search results
+    const results = searchAppointments(value);
+    setSearchResults(results);
+    
+    if (results.length > 0 && value.length >= 2) {
+      openDropdown();
+    } else {
+      closeDropdown();
+    }
+  };
+
+  const handleSearchFocus = () => {
+    if (searchTerm.length >= 2 && searchResults.length > 0) {
+      openDropdown();
+    }
+  };
+
+  const handleAppointmentSelect = (appointment: Appointment) => {
+    onAppointmentSelect(appointment);
+    onSearchChange(''); // Clear search
+    setSearchResults([]);
   };
 
   return (
@@ -30,18 +63,28 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
         </span>
       </div>
       
-      <TextField
-        className="h-10 max-w-[768px] grow shrink-0 basis-0"
-        label=""
-        helpText=""
-        icon={<FeatherSearch />}
-      >
-        <TextField.Input
-          placeholder="Search"
-          value={searchTerm}
-          onChange={handleSearchChange}
+      <div ref={searchContainerRef} className="relative h-10 max-w-[768px] grow shrink-0 basis-0">
+        <TextField
+          className="h-full w-full"
+          label=""
+          helpText=""
+          icon={<FeatherSearch />}
+        >
+          <TextField.Input
+            placeholder="Search appointments..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            onFocus={handleSearchFocus}
+          />
+        </TextField>
+        
+        <SearchDropdown
+          results={searchResults}
+          isOpen={isOpen}
+          onSelect={handleAppointmentSelect}
+          onClose={closeDropdown}
         />
-      </TextField>
+      </div>
       
       <div className="flex items-center gap-2">
         <Button

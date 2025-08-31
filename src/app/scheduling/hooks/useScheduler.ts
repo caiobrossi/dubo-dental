@@ -63,24 +63,36 @@ export const timeUtils = {
   },
 
   isOverlapping: (app1: Appointment, app2: Appointment): boolean => {
+    // Include itself in the overlapping group
+    if (app1.id === app2.id) return true;
+    
     const start1 = timeUtils.toMinutes(app1.start_time);
     const end1 = timeUtils.toMinutes(app1.end_time);
     const start2 = timeUtils.toMinutes(app2.start_time);
     const end2 = timeUtils.toMinutes(app2.end_time);
     
-    return start1 < end2 && end1 > start2;
+    // Check if appointments overlap in time
+    const overlaps = start1 < end2 && end1 > start2;
+    
+    // Debug
+    if (overlaps && app1.id !== app2.id) {
+      console.log(`Overlap detected: ${app1.start_time}-${app1.end_time} overlaps with ${app2.start_time}-${app2.end_time}`);
+    }
+    
+    return overlaps;
   }
 };
 
 // Constantes do layout
 export const LAYOUT_CONSTANTS = {
   SLOT_HEIGHT: 80,
-  SLOT_PADDING: 4,
-  USABLE_HEIGHT: 72, // 80 - 8px (top+bottom padding)
-  PIXELS_PER_MINUTE: 72 / 60, // 1.2px per minute
+  SLOT_PADDING: 6, // Increased padding for better spacing
+  USABLE_HEIGHT: 68, // 80 - 12px (top+bottom padding)
+  PIXELS_PER_MINUTE: 68 / 60, // ~1.13px per minute
   MIN_CARD_HEIGHT: 20,
-  BASE_LEFT_OFFSET: 2,
-  CARD_WIDTH_FACTOR: 0.94
+  BASE_LEFT_OFFSET: 2, // Small offset from left edge
+  CARD_WIDTH_FACTOR: 0.94, // Width factor for cards
+  CARD_GAP: 2 // Gap between side-by-side cards
 };
 
 export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedTime[] = []) => {
@@ -112,9 +124,29 @@ export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedT
 
   // Detectar overlaps para um appointment específico
   const getOverlappingAppointments = useCallback((targetAppointment: Appointment, dateAppointments: Appointment[]) => {
-    return dateAppointments.filter(app => 
+    const overlapping = dateAppointments.filter(app => 
       timeUtils.isOverlapping(targetAppointment, app)
     );
+    
+    // Include all appointments that overlap with any appointment in the group
+    // This ensures that if A overlaps with B and B overlaps with C, all three are in the same group
+    const expandedGroup = new Set(overlapping);
+    let previousSize = 0;
+    
+    while (expandedGroup.size !== previousSize) {
+      previousSize = expandedGroup.size;
+      const currentGroup = Array.from(expandedGroup);
+      
+      currentGroup.forEach(app1 => {
+        dateAppointments.forEach(app2 => {
+          if (timeUtils.isOverlapping(app1, app2)) {
+            expandedGroup.add(app2);
+          }
+        });
+      });
+    }
+    
+    return Array.from(expandedGroup);
   }, []);
 
   // Calcular layout de um appointment
@@ -122,28 +154,45 @@ export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedT
     appointment: Appointment,
     overlappingApps: Appointment[]
   ): AppointmentLayout => {
-    // Ordenar por horário de início
-    const sortedApps = overlappingApps.sort((a, b) => 
-      timeUtils.toMinutes(a.start_time) - timeUtils.toMinutes(b.start_time)
-    );
+    // Sort all overlapping appointments by start time, then by ID for consistency
+    const sortedApps = overlappingApps.sort((a, b) => {
+      const timeCompare = timeUtils.toMinutes(a.start_time) - timeUtils.toMinutes(b.start_time);
+      if (timeCompare !== 0) return timeCompare;
+      return a.id.localeCompare(b.id);
+    });
 
+    // Find the position of this appointment in the sorted group
     const totalOverlapping = sortedApps.length;
     const appointmentIndex = sortedApps.findIndex(app => app.id === appointment.id);
 
-    // Calcular dimensões
-    const widthPercentage = totalOverlapping <= 1 ? 100 : 100 / totalOverlapping;
-    const leftPercentage = totalOverlapping <= 1 ? 0 : appointmentIndex * widthPercentage;
+    // Calculate width and position
+    // All appointments in the overlapping group get equal width
+    const widthPercentage = totalOverlapping <= 1 ? 100 : (100 / totalOverlapping);
+    const leftPercentage = totalOverlapping <= 1 ? 0 : (appointmentIndex * widthPercentage);
 
     // Calcular altura baseado na duração
     const durationMinutes = timeUtils.getDurationMinutes(appointment.start_time, appointment.end_time);
+    const startMin = parseInt(appointment.start_time.split(':')[1]);
+    
+    // Calcular altura sem limitação para appointments multi-hora
     const height = Math.max(
       LAYOUT_CONSTANTS.MIN_CARD_HEIGHT, 
       durationMinutes * LAYOUT_CONSTANTS.PIXELS_PER_MINUTE
     );
+    
+    // Debug height calculation for multi-hour appointments
+    if (durationMinutes >= 90) {
+      console.log(`Multi-hour appointment height calculation:`, {
+        patient: appointment.patient_name,
+        duration: `${appointment.start_time} - ${appointment.end_time}`,
+        durationMinutes,
+        pixelsPerMinute: LAYOUT_CONSTANTS.PIXELS_PER_MINUTE,
+        calculatedHeight: height,
+        expectedSlots: Math.ceil(durationMinutes / 60)
+      });
+    }
 
     // Calcular offset vertical dentro do slot inicial
-    const startHour = parseInt(appointment.start_time.split(':')[0]);
-    const startMin = parseInt(appointment.start_time.split(':')[1]);
     const topOffset = (startMin / 60) * LAYOUT_CONSTANTS.USABLE_HEIGHT;
 
     return {
@@ -220,9 +269,34 @@ export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedT
     const dateAppointments = getAppointmentsForDate(date);
     const layoutMap = new Map<string, AppointmentLayout>();
 
+    // Debug logging
+    if (dateAppointments.length > 0) {
+      console.log(`Processing ${dateAppointments.length} appointments for date ${date.toISOString().split('T')[0]}`);
+      
+      // Log all appointments for this date
+      dateAppointments.forEach(apt => {
+        console.log(`  - ${apt.patient_name}: ${apt.start_time} to ${apt.end_time} (${apt.professional_name})`);
+      });
+    }
+
     dateAppointments.forEach(appointment => {
       const overlapping = getOverlappingAppointments(appointment, dateAppointments);
+      
+      // Debug overlapping appointments
+      if (overlapping.length > 1) {
+        console.log(`Appointment overlaps detected:`, {
+          current: `${appointment.patient_name} - ${appointment.start_time} to ${appointment.end_time}`,
+          overlappingCount: overlapping.length,
+          overlappingWith: overlapping.map(a => `${a.patient_name} - ${a.start_time} to ${a.end_time}`)
+        });
+      }
+      
       const layout = calculateAppointmentLayout(appointment, overlapping);
+      console.log(`Layout for ${appointment.patient_name}:`, {
+        width: `${layout.widthPercentage}%`,
+        left: `${layout.leftPercentage}%`,
+        height: `${layout.height}px`
+      });
       layoutMap.set(appointment.id, layout);
     });
 

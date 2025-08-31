@@ -12,6 +12,8 @@ import { SchedulingGrid } from "./SchedulingGrid";
 // Hooks
 import { useSchedulingData } from "../hooks/useSchedulingData";
 import { useSchedulingModal } from "../hooks/useSchedulingModal";
+import { useAppointmentNavigation } from "../hooks/useAppointmentNavigation";
+import { useAllAppointments } from "../hooks/useAllAppointments";
 
 // Types
 import { ViewMode, Appointment, BlockedTime } from "../types";
@@ -41,6 +43,12 @@ const SchedulingPage: React.FC = () => {
     refreshData 
   } = useSchedulingData(selectedDate, viewMode);
 
+  // Hook for search - loads ALL future appointments
+  const { 
+    allAppointments, 
+    refreshAllAppointments 
+  } = useAllAppointments();
+
   const {
     isOpen: showAppointmentModal,
     modalType,
@@ -50,10 +58,27 @@ const SchedulingPage: React.FC = () => {
     handleAddClick
   } = useSchedulingModal();
 
+  // Navigation hook for search functionality
+  const { scrollContainerRef, scrollToAppointment } = useAppointmentNavigation();
+
   // Event handlers with useCallback for performance
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
   }, []);
+
+  const handleAppointmentSelect = useCallback((appointment: Appointment) => {
+    // Navigate to the appointment's date
+    const appointmentDate = new Date(appointment.appointment_date);
+    setSelectedDate(appointmentDate);
+    
+    // Clear search
+    setSearchTerm('');
+    
+    // Scroll to the specific appointment in the calendar
+    setTimeout(() => {
+      scrollToAppointment(appointment);
+    }, 300); // Small delay to ensure date change is processed
+  }, [scrollToAppointment]);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -65,7 +90,8 @@ const SchedulingPage: React.FC = () => {
 
   const handleAppointmentCreated = useCallback(() => {
     refreshData();
-  }, [refreshData]);
+    refreshAllAppointments(); // Also refresh search data
+  }, [refreshData, refreshAllAppointments]);
 
   const handleAppointmentClick = useCallback((appointment: Appointment) => {
     // TODO: Implement appointment editing functionality
@@ -114,8 +140,10 @@ const SchedulingPage: React.FC = () => {
         {/* Header with search and actions */}
         <SchedulingHeader
           searchTerm={searchTerm}
+          appointments={allAppointments} // Use all appointments for search
           onSearchChange={handleSearchChange}
           onAddClick={handleAddClick}
+          onAppointmentSelect={handleAppointmentSelect}
         />
 
         {/* Main scheduling area */}
@@ -130,6 +158,7 @@ const SchedulingPage: React.FC = () => {
 
           {/* Scheduling grid */}
           <SchedulingGrid
+            ref={scrollContainerRef}
             selectedDate={selectedDate}
             viewMode={viewMode}
             appointments={appointments}

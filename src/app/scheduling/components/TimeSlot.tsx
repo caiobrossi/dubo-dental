@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Appointment, BlockedTime } from '../types';
 import { 
   formatTimeHM, 
@@ -8,11 +8,14 @@ import {
   calculateAppointmentTop
 } from '../utils/timeUtils';
 import { formatPatientNameForDisplay } from '../utils/nameUtils';
+import { useScheduler } from '../hooks/useScheduler';
+import { AppointmentCard } from './AppointmentCard';
 
 interface TimeSlotProps {
   date: Date;
   hour: number;
   appointments: Appointment[];
+  allDayAppointments: Appointment[];
   blockedTimes: BlockedTime[];
   isLastColumn: boolean;
   onSlotClick: (date: Date, hour: number) => void;
@@ -27,6 +30,7 @@ export const TimeSlot = memo<TimeSlotProps>(({
   date,
   hour,
   appointments,
+  allDayAppointments,
   blockedTimes,
   isLastColumn,
   onSlotClick,
@@ -36,6 +40,12 @@ export const TimeSlot = memo<TimeSlotProps>(({
   const hasContent = appointments.length > 0 || blockedTimes.length > 0;
   const shouldRemoveBorder = shouldRemoveBottomBorder(blockedTimes, date, hour);
   const isBlockedSlot = blockedTimes.length > 0;
+  
+  // Use the scheduler hook with ALL appointments for the day to calculate proper layouts
+  const { calculateAppointmentLayouts } = useScheduler(allDayAppointments, blockedTimes);
+  const appointmentLayouts = useMemo(() => {
+    return calculateAppointmentLayouts(date);
+  }, [calculateAppointmentLayouts, date]);
 
   const handleSlotClick = () => {
     if (!hasContent) {
@@ -90,45 +100,24 @@ export const TimeSlot = memo<TimeSlotProps>(({
         ) : null
       )}
       
-      {/* Render appointments */}
-      {appointments.map((appointment, index) => {
-        const cardHeight = calculateAppointmentHeight(appointment.start_time, appointment.end_time);
-        const cardTop = calculateAppointmentTop(appointment.start_time, hour);
+      {/* Render appointments using AppointmentCard with proper layout */}
+      {appointments.map((appointment) => {
+        const layout = appointmentLayouts.get(appointment.id);
+        if (!layout) {
+          console.warn(`No layout found for appointment ${appointment.id}`);
+          return null;
+        }
         
         return (
-          <div
+          <AppointmentCard
             key={appointment.id}
-            className="absolute bg-blue-100 border-l-4 border-blue-500 px-2 py-1 text-xs overflow-hidden"
-            style={{ 
-              borderRadius: '4px',
-              height: `${cardHeight}px`,
-              top: `${cardTop + 4}px`, // Add 4px for pt-1 offset
-              left: '4px', // Match pl-1
-              width: 'calc(100% - 12px)', // Total padding compensation (4px left + 8px right)
-              zIndex: 10 // Ensure card appears above other slots
+            appointment={appointment}
+            layout={layout}
+            onClick={(apt, event) => {
+              event.stopPropagation();
+              onAppointmentClick(apt);
             }}
-            onClick={(e) => handleAppointmentClick(e, appointment)}
-          >
-            {/* Top row: Patient name and time */}
-            <div className="flex items-center justify-between mb-1">
-              <div className="font-semibold text-blue-800 truncate flex items-center gap-1">
-                {formatPatientNameForDisplay(appointment.patient_name)}
-                {appointments.length > 1 && index === 0 && (
-                  <span className="text-blue-600 text-xs">
-                    +{appointments.length - 1}
-                  </span>
-                )}
-              </div>
-              <div className="text-blue-600 text-xs flex-shrink-0">
-                {formatTimeHM(appointment.start_time)} - {formatTimeHM(appointment.end_time)}
-              </div>
-            </div>
-            
-            {/* Bottom row: Procedure type */}
-            <div className="text-blue-500 truncate">
-              {appointment.appointment_type || 'Consulta'}
-            </div>
-          </div>
+          />
         );
       })}
     </div>

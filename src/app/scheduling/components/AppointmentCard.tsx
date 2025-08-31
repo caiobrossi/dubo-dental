@@ -107,16 +107,29 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   
   // Sistema de cores funcionando corretamente
 
+  // Calculate adjusted width and left position for side-by-side appointments
+  const hasOverlap = layout.widthPercentage < 100;
+  const adjustedWidth = hasOverlap 
+    ? `calc(${layout.widthPercentage * LAYOUT_CONSTANTS.CARD_WIDTH_FACTOR}% - ${LAYOUT_CONSTANTS.CARD_GAP}px)`
+    : `${layout.widthPercentage * LAYOUT_CONSTANTS.CARD_WIDTH_FACTOR}%`;
+  
+  const adjustedLeft = hasOverlap
+    ? `calc(${LAYOUT_CONSTANTS.BASE_LEFT_OFFSET + (layout.leftPercentage * LAYOUT_CONSTANTS.CARD_WIDTH_FACTOR)}% + ${layout.leftPercentage > 0 ? LAYOUT_CONSTANTS.CARD_GAP / 2 : 0}px)`
+    : `${LAYOUT_CONSTANTS.BASE_LEFT_OFFSET + (layout.leftPercentage * LAYOUT_CONSTANTS.CARD_WIDTH_FACTOR)}%`;
+
   return (
     <div
-      className={`${colors.bg} border-l-4 ${colors.border} px-2 py-1 text-xs absolute overflow-hidden shadow-sm cursor-pointer ${colors.hover}`}
+      data-appointment-id={appointment.id}
+      className={`${colors.bg} border-l-4 ${colors.border} px-2 py-1 text-xs absolute overflow-hidden shadow-sm cursor-pointer ${colors.hover} transition-all duration-200`}
       style={{
         height: `${layout.height}px`,
         top: `${LAYOUT_CONSTANTS.SLOT_PADDING + layout.topOffset}px`,
-        left: `${LAYOUT_CONSTANTS.BASE_LEFT_OFFSET + (layout.leftPercentage * LAYOUT_CONSTANTS.CARD_WIDTH_FACTOR)}%`,
-        width: `${layout.widthPercentage * LAYOUT_CONSTANTS.CARD_WIDTH_FACTOR}%`,
+        left: adjustedLeft,
+        width: adjustedWidth,
         minHeight: `${LAYOUT_CONSTANTS.MIN_CARD_HEIGHT}px`,
-        borderRadius: '4px'
+        borderRadius: '4px',
+        boxSizing: 'border-box',
+        zIndex: 20 // Ensure multi-hour appointments appear above other slots
       }}
       onClick={handleClick}
       title={`${appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'} - ${timeUtils.formatTimeWithoutSeconds(appointment.start_time)} - ${timeUtils.formatTimeWithoutSeconds(appointment.end_time)} - ${appointment.status?.toUpperCase()}`}

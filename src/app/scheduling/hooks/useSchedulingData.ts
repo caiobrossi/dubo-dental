@@ -31,7 +31,7 @@ export const useSchedulingData = (selectedDate: Date, viewMode: ViewMode) => {
           .select('*')
           .gte('appointment_date', startDateStr)
           .lte('appointment_date', endDateStr)
-          .eq('status', 'scheduled'), // Only show scheduled appointments
+          .in('status', ['scheduled', 'confirmed']), // Show both scheduled and confirmed appointments
 
         supabase
           .from('blocked_times')
@@ -43,6 +43,9 @@ export const useSchedulingData = (selectedDate: Date, viewMode: ViewMode) => {
       if (appointmentsResult.error) throw appointmentsResult.error;
       if (blockedTimesResult.error) throw blockedTimesResult.error;
 
+      console.log('Fetched appointments:', appointmentsResult.data);
+      console.log('Total appointments:', appointmentsResult.data?.length);
+      
       setAppointments(appointmentsResult.data || []);
       setBlockedTimes(blockedTimesResult.data || []);
     } catch (err) {
