@@ -92,7 +92,7 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function Content(
     <SubframeCore.Select.Content asChild={true} {...otherProps}>
       <div
         className={SubframeUtils.twClassNames(
-          "flex w-full flex-col items-start overflow-hidden rounded-md border border-solid border-neutral-border bg-white px-1 py-1 shadow-lg",
+          "flex w-full flex-col items-start overflow-hidden rounded-md border border-solid border-neutral-border bg-white px-1 py-1 shadow-lg z-[60]",
           className
         )}
         ref={ref}
@@ -263,7 +263,7 @@ const SelectRoot = React.forwardRef<HTMLDivElement, SelectRootProps>(
               "flex h-10 w-full flex-none flex-col items-start rounded-sm border border-solid border-neutral-300 bg-default-background group-focus-within/bb88f90b:border-2 group-focus-within/bb88f90b:border-solid group-focus-within/bb88f90b:border-brand-primary",
               {
                 "border-none bg-transparent": variant === "inverse",
-                "h-10 w-full flex-none rounded-sm border-none bg-new-gray-4 group-hover/bb88f90b:w-full group-hover/bb88f90b:grow group-hover/bb88f90b:shrink-0 group-hover/bb88f90b:basis-0 group-hover/bb88f90b:border-none group-hover/bb88f90b:bg-new-gray-6 group-focus-within/bb88f90b:bg-new-white-100":
+                "h-10 w-full flex-none rounded-sm border-none bg-neutral-100 group-hover/bb88f90b:w-full group-hover/bb88f90b:grow group-hover/bb88f90b:shrink-0 group-hover/bb88f90b:basis-0 group-hover/bb88f90b:border-none group-hover/bb88f90b:bg-neutral-200 group-focus-within/bb88f90b:!border group-focus-within/bb88f90b:!border-solid group-focus-within/bb88f90b:!border-brand-primary group-focus-within/bb88f90b:!bg-white":
                   variant === "filled",
                 "border border-solid border-error-600": error,
                 "h-10 w-full flex-none bg-neutral-200": disabled,

@@ -13,6 +13,7 @@ import { FeatherSearch } from "@subframe/core";
 import { FeatherX } from "@subframe/core";
 import { supabase, Patient, Professional } from "@/lib/supabase";
 import { SearchableSelect } from "./SearchableSelect";
+import { preparePatientNameForStorage } from "@/app/scheduling/utils/nameUtils";
 
 interface NewAppointmentModalProps {
   open: boolean;
@@ -40,9 +41,13 @@ function NewAppointmentModal({
     duration_minutes: "30",
     appointment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     start_time: preSelectedTime || "14:00",
+    end_time: "15:00",
     notes: "",
     send_reminders: true,
-    notify_cancellation: false
+    notify_cancellation: false,
+    // Campos específicos para blocked time
+    reason: "",
+    repeat: false
   });
 
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -56,19 +61,24 @@ function NewAppointmentModal({
   useEffect(() => {
     if (open) {
       fetchPatientsAndProfessionals();
-      // Update date and time if pre-selected
-      if (preSelectedDate) {
-        setFormData(prev => ({
-          ...prev,
-          appointment_date: preSelectedDate.toISOString().split('T')[0]
-        }));
-      }
-      if (preSelectedTime) {
-        setFormData(prev => ({
-          ...prev,
-          start_time: preSelectedTime
-        }));
-      }
+      
+      // Reset form data para limpar seleções anteriores
+      setFormData({
+        patient_id: "",
+        professional_id: "",
+        room: "",
+        procedure_type: "first_time",
+        duration_minutes: "30",
+        appointment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        start_time: preSelectedTime || "14:00",
+        end_time: preSelectedTime ? calculateEndTime(preSelectedTime, "30") : "15:00",
+        notes: "",
+        send_reminders: true,
+        notify_cancellation: false,
+        // Campos específicos para blocked time
+        reason: "",
+        repeat: false
+      });
     }
   }, [open, preSelectedDate, preSelectedTime]);
 
@@ -107,23 +117,73 @@ function NewAppointmentModal({
       console.log('Starting appointment creation...', { appointmentType, formData });
 
       if (appointmentType === 'blocked') {
+        // Validate required fields for blocked time
+        if (!formData.professional_id) {
+          console.error('Validation failed: missing professional');
+          alert('Please select a professional');
+          setLoading(false);
+          return;
+        }
+
+        // Validate required fields more thoroughly
+        if (!formData.appointment_date || !formData.start_time) {
+          console.error('Validation failed: missing date or start time');
+          alert('Please fill in all required fields (date and start time)');
+          setLoading(false);
+          return;
+        }
+
+        // Find the selected professional
+        const selectedProfessional = professionals.find(p => p.id === formData.professional_id);
+        if (!selectedProfessional) {
+          console.error('Selected professional not found');
+          alert('Selected professional not found');
+          setLoading(false);
+          return;
+        }
+
+        // Ensure end_time is set
+        const endTime = formData.end_time || calculateEndTime(formData.start_time, "60");
+        
+        console.log('Creating blocked time with data:', {
+          professional_id: formData.professional_id,
+          professional_name: selectedProfessional.name,
+          date: formData.appointment_date,
+          start_time: formData.start_time,
+          end_time: endTime,
+          reason: formData.reason || 'Blocked time'
+        });
+
         // Create blocked time
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('blocked_times')
           .insert([{
             professional_id: formData.professional_id,
-            professional_name: professionals.find(p => p.id === formData.professional_id)?.name,
+            professional_name: selectedProfessional.name,
             date: formData.appointment_date,
             start_time: formData.start_time,
-            end_time: calculateEndTime(formData.start_time, formData.duration_minutes),
-            reason: formData.notes || 'Blocked time'
-          }]);
+            end_time: endTime,
+            reason: formData.reason || 'Blocked time'
+          }])
+          .select();
 
         if (error) {
           console.error('Error creating blocked time:', error);
-          throw error;
+          
+          // Provide specific error messages
+          if (error.message?.includes('Conflito de horário')) {
+            alert('Time conflict: There is already an appointment or blocked time in this period.');
+          } else if (error.message?.includes('violates foreign key constraint')) {
+            alert('Invalid professional selected. Please try refreshing the page.');
+          } else {
+            alert(`Error creating blocked time: ${error.message || 'Unknown error'}`);
+          }
+          
+          setLoading(false);
+          return;
         }
-        console.log('Blocked time created successfully');
+        
+        console.log('Blocked time created successfully:', data);
       } else {
         // Validate required fields for appointment
         if (!formData.patient_id || !formData.professional_id) {
@@ -143,7 +203,7 @@ function NewAppointmentModal({
 
         const appointmentData = {
           patient_id: formData.patient_id,
-          patient_name: selectedPatient?.name,
+          patient_name: preparePatientNameForStorage(selectedPatient?.name || ''),
           professional_id: formData.professional_id,
           professional_name: selectedProfessional?.name,
           appointment_date: formData.appointment_date,
@@ -180,9 +240,12 @@ function NewAppointmentModal({
         duration_minutes: "30",
         appointment_date: new Date().toISOString().split('T')[0],
         start_time: "14:00",
+        end_time: "15:00",
         notes: "",
         send_reminders: true,
-        notify_cancellation: false
+        notify_cancellation: false,
+        reason: "",
+        repeat: false
       });
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -233,21 +296,51 @@ function NewAppointmentModal({
             onClick={() => onOpenChange(false)}
           />
         </div>
-        <div className="flex w-full flex-col items-start gap-8 bg-neutral-50 px-4 py-4 mobile:flex-col mobile:flex-nowrap mobile:gap-6">
+        <div className="flex w-full flex-col items-start gap-8 bg-default-background px-4 py-4 mobile:flex-col mobile:flex-nowrap mobile:gap-6">
           <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
+            
+            {/* Campos para Appointment */}
             {appointmentType === 'appointment' && (
-              <div className="flex h-12 w-full flex-none items-center justify-between py-2">
+              <>
+                <div className="flex h-12 w-full flex-none items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Patient name
+                  </span>
+                  <SearchableSelect
+                    options={patients.map(p => ({ id: p.id!, name: p.name! }))}
+                    value={formData.patient_id}
+                    onValueChange={(value) => setFormData({...formData, patient_id: value})}
+                    placeholder="Search patient..."
+                    disabled={false}
+                    className="grow shrink-0 basis-0"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Campos para Blocked Time */}
+            {appointmentType === 'blocked' && (
+              <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
                 <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                  Patient name
+                  Reason
                 </span>
-                <SearchableSelect
-                  options={patients.map(p => ({ id: p.id!, name: p.name! }))}
-                  value={formData.patient_id}
-                  onValueChange={(value) => setFormData({...formData, patient_id: value})}
-                  placeholder="Search patient..."
+                <TextField
+                  className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
-                  className="grow shrink-0 basis-0"
-                />
+                  error={false}
+                  label=""
+                  helpText=""
+                  icon={null}
+                >
+                  <TextField.Input
+                    placeholder="Enter reason for blocking time"
+                    value={formData.reason}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                      setFormData({...formData, reason: event.target.value})
+                    }
+                  />
+                </TextField>
               </div>
             )}
             
@@ -257,6 +350,7 @@ function NewAppointmentModal({
               </span>
               <Select
                 className="h-10 grow shrink-0 basis-0"
+                variant="filled"
                 disabled={false}
                 error={false}
                 label=""
@@ -274,156 +368,240 @@ function NewAppointmentModal({
               </Select>
             </div>
             
-            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
-              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                Room
-              </span>
-              <Select
-                className="h-10 grow shrink-0 basis-0"
-                disabled={false}
-                error={false}
-                label=""
-                placeholder="Select room"
-                helpText=""
-                icon={null}
-                value={formData.room}
-                onValueChange={(value: string) => setFormData({...formData, room: value})}
-              >
-                <Select.Item value="room1">Room 1</Select.Item>
-                <Select.Item value="room2">Room 2</Select.Item>
-                <Select.Item value="room3">Room 3</Select.Item>
-                <Select.Item value="room4">Room 4</Select.Item>
-              </Select>
-            </div>
+            {/* Campos específicos para Appointment */}
+            {appointmentType === 'appointment' && (
+              <>
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Room
+                  </span>
+                  <Select
+                    className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
+                    disabled={false}
+                    error={false}
+                    label=""
+                    placeholder="Select room"
+                    helpText=""
+                    icon={null}
+                    value={formData.room}
+                    onValueChange={(value: string) => setFormData({...formData, room: value})}
+                  >
+                    <Select.Item value="room1">Room 1</Select.Item>
+                    <Select.Item value="room2">Room 2</Select.Item>
+                    <Select.Item value="room3">Room 3</Select.Item>
+                    <Select.Item value="room4">Room 4</Select.Item>
+                  </Select>
+                </div>
+                
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Procedure type
+                  </span>
+                  <Select
+                    className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
+                    disabled={false}
+                    error={false}
+                    label=""
+                    placeholder="First time"
+                    helpText=""
+                    icon={null}
+                    value={formData.procedure_type}
+                    onValueChange={(value: string) => setFormData({...formData, procedure_type: value})}
+                  >
+                    <Select.Item value="first_time">First time</Select.Item>
+                    <Select.Item value="consultation">Consultation</Select.Item>
+                    <Select.Item value="cleaning">Cleaning</Select.Item>
+                    <Select.Item value="treatment">Treatment</Select.Item>
+                    <Select.Item value="follow_up">Follow up</Select.Item>
+                  </Select>
+                </div>
+                
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Duration
+                  </span>
+                  <Select
+                    className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
+                    disabled={false}
+                    error={false}
+                    label=""
+                    placeholder="30 min"
+                    helpText=""
+                    icon={null}
+                    value={formData.duration_minutes}
+                    onValueChange={(value: string) => setFormData({...formData, duration_minutes: value})}
+                  >
+                    <Select.Item value="15">15 min</Select.Item>
+                    <Select.Item value="30">30 min</Select.Item>
+                    <Select.Item value="45">45 min</Select.Item>
+                    <Select.Item value="60">1 hour</Select.Item>
+                    <Select.Item value="90">1h 30min</Select.Item>
+                    <Select.Item value="120">2 hours</Select.Item>
+                  </Select>
+                </div>
+              </>
+            )}
             
+            {/* Campos para Appointment: Date e Starts on */}
+            {appointmentType === 'appointment' && (
+              <>
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Date
+                  </span>
+                  <TextField
+                    className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
+                    disabled={false}
+                    error={false}
+                    label=""
+                    helpText=""
+                    icon={null}
+                  >
+                    <TextField.Input
+                      type="date"
+                      placeholder=""
+                      value={formData.appointment_date}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                        setFormData({...formData, appointment_date: event.target.value})
+                      }
+                    />
+                  </TextField>
+                </div>
+                
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Starts on
+                  </span>
+                  <div className="flex grow shrink-0 basis-0 flex-col items-start gap-2 self-stretch">
+                    <Select
+                      className="h-10 w-full flex-none"
+                      variant="filled"
+                      disabled={false}
+                      error={false}
+                      label=""
+                      placeholder="2:00pm"
+                      helpText=""
+                      icon={null}
+                      value={formData.start_time}
+                      onValueChange={(value: string) => setFormData({...formData, start_time: value})}
+                    >
+                      {timeOptions.map((time) => (
+                        <Select.Item key={time.value} value={time.value}>
+                          {time.label}
+                        </Select.Item>
+                      ))}
+                    </Select>
+                    <LinkButton
+                      disabled={false}
+                      variant="brand"
+                      size="medium"
+                      icon={null}
+                      iconRight={null}
+                      onClick={() => console.log('Find available time')}
+                    >
+                      Find available time
+                    </LinkButton>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Campos específicos para Blocked Time */}
+            {appointmentType === 'blocked' && (
+              <>
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Starts on
+                  </span>
+                  <TextField
+                    className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
+                    disabled={false}
+                    error={false}
+                    label=""
+                    helpText=""
+                    icon={null}
+                  >
+                    <TextField.Input
+                      type="datetime-local"
+                      placeholder=""
+                      value={`${formData.appointment_date}T${formData.start_time}`}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                        const [date, time] = event.target.value.split('T');
+                        setFormData({...formData, appointment_date: date, start_time: time});
+                      }}
+                    />
+                  </TextField>
+                </div>
+                
+                <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    Finish on
+                  </span>
+                  <TextField
+                    className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
+                    disabled={false}
+                    error={false}
+                    label=""
+                    helpText=""
+                    icon={null}
+                  >
+                    <TextField.Input
+                      type="datetime-local"
+                      placeholder=""
+                      value={`${formData.appointment_date}T${formData.end_time}`}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                        const [date, time] = event.target.value.split('T');
+                        setFormData({...formData, end_time: time});
+                      }}
+                    />
+                  </TextField>
+                </div>
+                
+                <div className="flex h-14 w-full flex-none items-center justify-between py-2">
+                  <span className="grow shrink-0 basis-0 text-body-medium font-body-medium text-subtext-color">
+                    Repeat
+                  </span>
+                  <Switch
+                    checked={formData.repeat}
+                    onCheckedChange={(checked: boolean) => 
+                      setFormData({...formData, repeat: checked})
+                    }
+                  />
+                </div>
+              </>
+            )}
+            
+            {/* Add notes apenas para appointments */}
             {appointmentType === 'appointment' && (
               <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
                 <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                  Procedure type
+                  Add notes (optional)
                 </span>
-                <Select
+                <TextField
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""
-                  placeholder="First time"
                   helpText=""
                   icon={null}
-                  value={formData.procedure_type}
-                  onValueChange={(value: string) => setFormData({...formData, procedure_type: value})}
                 >
-                  <Select.Item value="first_time">First time</Select.Item>
-                  <Select.Item value="consultation">Consultation</Select.Item>
-                  <Select.Item value="cleaning">Cleaning</Select.Item>
-                  <Select.Item value="treatment">Treatment</Select.Item>
-                  <Select.Item value="follow_up">Follow up</Select.Item>
-                </Select>
+                  <TextField.Input
+                    placeholder=""
+                    value={formData.notes}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                      setFormData({...formData, notes: event.target.value})
+                    }
+                  />
+                </TextField>
               </div>
             )}
-            
-            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
-              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                Duration
-              </span>
-              <Select
-                className="h-10 grow shrink-0 basis-0"
-                disabled={false}
-                error={false}
-                label=""
-                placeholder="30 min"
-                helpText=""
-                icon={null}
-                value={formData.duration_minutes}
-                onValueChange={(value: string) => setFormData({...formData, duration_minutes: value})}
-              >
-                <Select.Item value="15">15 min</Select.Item>
-                <Select.Item value="30">30 min</Select.Item>
-                <Select.Item value="45">45 min</Select.Item>
-                <Select.Item value="60">1 hour</Select.Item>
-                <Select.Item value="90">1h 30min</Select.Item>
-                <Select.Item value="120">2 hours</Select.Item>
-              </Select>
-            </div>
-            
-            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
-              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                Date
-              </span>
-              <TextField
-                className="h-10 grow shrink-0 basis-0"
-                disabled={false}
-                error={false}
-                label=""
-                helpText=""
-                icon={null}
-              >
-                <TextField.Input
-                  type="date"
-                  placeholder=""
-                  value={formData.appointment_date}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
-                    setFormData({...formData, appointment_date: event.target.value})
-                  }
-                />
-              </TextField>
-            </div>
-            
-            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
-              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                Starts on
-              </span>
-              <div className="flex grow shrink-0 basis-0 flex-col items-start gap-2 self-stretch">
-                <Select
-                  className="h-10 w-full flex-none"
-                  disabled={false}
-                  error={false}
-                  label=""
-                  placeholder="2:00pm"
-                  helpText=""
-                  icon={null}
-                  value={formData.start_time}
-                  onValueChange={(value: string) => setFormData({...formData, start_time: value})}
-                >
-                  {timeOptions.map((time) => (
-                    <Select.Item key={time.value} value={time.value}>
-                      {time.label}
-                    </Select.Item>
-                  ))}
-                </Select>
-                <LinkButton
-                  disabled={false}
-                  variant="brand"
-                  size="medium"
-                  icon={null}
-                  iconRight={null}
-                  onClick={() => console.log('Find available time')}
-                >
-                  Find available time
-                </LinkButton>
-              </div>
-            </div>
-            
-            <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
-              <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                Add notes (optional)
-              </span>
-              <TextField
-                className="h-10 grow shrink-0 basis-0"
-                disabled={false}
-                error={false}
-                label=""
-                helpText=""
-                icon={null}
-              >
-                <TextField.Input
-                  placeholder=""
-                  value={formData.notes}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
-                    setFormData({...formData, notes: event.target.value})
-                  }
-                />
-              </TextField>
-            </div>
             
             {appointmentType === 'appointment' && (
               <>

@@ -90,7 +90,7 @@ const SidebarWithLargeItemsRoot = React.forwardRef<
   return (
     <nav
       className={SubframeUtils.twClassNames(
-        "flex h-full w-60 flex-col items-start bg-page-bg",
+        "flex h-full w-60 flex-col items-start bg-neutral-50 border-r border-solid border-neutral-border",
         className
       )}
       ref={ref}

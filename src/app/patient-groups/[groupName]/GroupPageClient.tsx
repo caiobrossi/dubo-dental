@@ -263,8 +263,8 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
 
   return (
     <DefaultPageLayout>
-      <div className="flex h-full w-full flex-col items-start gap-4 bg-page-bg pr-3 py-3 mobile:flex-col mobile:flex-nowrap mobile:gap-4">
-        <div className="flex h-10 w-full flex-none items-center justify-between px-4 mobile:container mobile:max-w-none">
+      <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3 mobile:flex-col mobile:flex-nowrap mobile:gap-4">
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 border-b border-solid border-neutral-border mobile:container mobile:max-w-none">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
               Patients
@@ -350,8 +350,7 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
           </div>
         </div>
 
-        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
-          <div className="flex w-full flex-wrap items-center justify-between pb-4">
+        <div className="flex w-full flex-wrap items-center justify-between px-4 pb-4">
             <div className="flex items-center gap-4">
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
@@ -411,8 +410,9 @@ function GroupPageClient({ groupName }: GroupPageClientProps) {
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
               />
             </TextField>
-          </div>
-          
+        </div>
+        
+        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
           {filteredPatients.length === 0 ? (
             <div className="flex w-full items-center justify-center py-8">
               <span className="text-gray-500">

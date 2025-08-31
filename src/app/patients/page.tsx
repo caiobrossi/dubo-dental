@@ -23,6 +23,7 @@ import * as SubframeCore from "@subframe/core";
 import { supabase, Patient, Professional } from "@/lib/supabase";
 import { useToast } from "../../contexts/ToastContext";
 import { useRouter } from "next/navigation";
+import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
 
 function PatientListing() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -198,8 +199,8 @@ function PatientListing() {
 
   return (
     <DefaultPageLayout>
-      <div className="flex h-full w-full flex-col items-start gap-4 pr-3 py-3 mobile:flex-col mobile:flex-nowrap mobile:gap-4">
-        <div className="flex h-10 w-full flex-none items-center justify-between px-4 mobile:container mobile:max-w-none">
+      <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3 mobile:flex-col mobile:flex-nowrap mobile:gap-4">
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 border-b border-solid border-neutral-border mobile:container mobile:max-w-none">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
               Patients
@@ -229,8 +230,7 @@ function PatientListing() {
           </Button>
         </div>
         
-        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
-          <div className="flex w-full flex-wrap items-center justify-between pb-4">
+        <div className="flex w-full flex-wrap items-center justify-between px-4 pb-4">
             <div className="flex items-center gap-4">
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
@@ -325,6 +325,7 @@ function PatientListing() {
             
             <TextField
               className="h-10 w-96 flex-none"
+              variant="filled"
               label=""
               helpText=""
               icon={<FeatherSearch />}
@@ -343,8 +344,9 @@ function PatientListing() {
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
               />
             </TextField>
-          </div>
-          
+        </div>
+        
+        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
           <Table
             className="h-auto w-full flex-none overflow-auto"
             header={
@@ -393,7 +395,7 @@ function PatientListing() {
                       </Avatar>
                       <div className="flex flex-col items-start gap-1">
                         <span className="whitespace-nowrap font-['Urbanist'] text-[20px] font-[600] leading-[24px] text-neutral-700">
-                          {patient.name}
+                          {formatPatientNameForDisplay(patient.name)}
                         </span>
                         <span className="whitespace-nowrap text-body-medium font-body-medium text-new-gray-50">
                           ID: {patient.id?.slice(0, 8) || 'N/A'}

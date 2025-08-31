@@ -17,6 +17,7 @@ import { FeatherUpload } from "@subframe/core";
 import { FeatherX } from "@subframe/core";
 import { useToast } from "@/contexts/ToastContext";
 import { supabase, Patient, Professional, PatientGroup } from "@/lib/supabase";
+import { preparePatientNameForStorage } from "@/app/scheduling/utils/nameUtils";
 
 interface AddPatientModalProps {
   open: boolean;
@@ -26,6 +27,8 @@ interface AddPatientModalProps {
 }
 
 function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }: AddPatientModalProps) {
+  // Using centralized name capitalization utility
+
   // Form state
   const [patientName, setPatientName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -238,7 +241,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
     try {
       // Preparar dados para inserção - apenas campos preenchidos
       const patientData: any = {
-        name: patientName.trim(),
+        name: preparePatientNameForStorage(patientName.trim()),
         created_at: new Date().toISOString(),
       };
 
@@ -357,6 +360,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <TextField
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -424,6 +428,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <TextField
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -476,6 +481,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <Select
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -495,6 +501,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <Select
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -514,6 +521,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <Select
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -542,6 +550,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <TextField
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -564,6 +573,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <TextField
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -596,6 +606,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                     </span>
                     <TextField
                       className="h-10 grow shrink-0 basis-0"
+                      variant="filled"
                       disabled={false}
                       error={false}
                       label=""
@@ -628,6 +639,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   </span>
                   <TextField
                     className="h-10 grow shrink-0 basis-0"
+                    variant="filled"
                     disabled={false}
                     error={false}
                     label=""
@@ -684,6 +696,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                   <div className="flex grow shrink-0 basis-0 flex-col items-center gap-2">
                     <TextField
                       className="h-10 w-full flex-none"
+                      variant="filled"
                       disabled={false}
                       error={false}
                       label=""
@@ -702,6 +715,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                     <div className="flex w-full items-center gap-2">
                       <TextField
                         className="h-10 grow shrink-0 basis-0"
+                        variant="filled"
                         disabled={false}
                         error={false}
                         label=""
@@ -719,6 +733,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                       </TextField>
                       <TextField
                         className="h-10 grow shrink-0 basis-0"
+                        variant="filled"
                         disabled={false}
                         error={false}
                         label=""
@@ -736,6 +751,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                       </TextField>
                       <TextField
                         className="h-10 grow shrink-0 basis-0"
+                        variant="filled"
                         disabled={false}
                         error={false}
                         label=""
@@ -768,6 +784,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                 </span>
                 <Select
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""
@@ -787,6 +804,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                 </span>
                 <Select
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""
@@ -806,6 +824,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                 </span>
                 <TextField
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""
@@ -827,6 +846,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                 </span>
                 <TextField
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""
@@ -866,6 +886,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                 </span>
                 <Select
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""
@@ -892,6 +913,7 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                 </span>
                 <Select
                   className="h-10 grow shrink-0 basis-0"
+                  variant="filled"
                   disabled={false}
                   error={false}
                   label=""

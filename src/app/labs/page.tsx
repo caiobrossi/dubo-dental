@@ -258,8 +258,8 @@ function LabsOrder() {
 
   return (
     <DefaultPageLayout>
-      <div className="flex h-full w-full flex-col items-start gap-4 bg-page-bg pr-3 py-3">
-        <div className="flex h-10 w-full flex-none items-center justify-between px-4">
+      <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3">
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 border-b border-solid border-neutral-border">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
               Labs Order
@@ -413,6 +413,7 @@ function LabsOrder() {
             </div>
             <TextField
               className="h-10 w-96 flex-none"
+              variant="filled"
               label=""
               helpText=""
               icon={<FeatherSearch />}

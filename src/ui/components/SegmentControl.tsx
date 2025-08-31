@@ -34,7 +34,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>(function Item(
       className={SubframeUtils.twClassNames(
         "group/96fe59ea flex h-full cursor-pointer items-center justify-center gap-2 rounded-full bg-new-white-6 px-4 hover:bg-neutral-100 hover:px-4 hover:py-0.5",
         {
-          "rounded-full bg-default-background px-4 py-0 shadow-sm hover:border-none hover:bg-new-white-100":
+          "rounded-full bg-default-background px-4 py-0 shadow-md hover:border-none hover:bg-new-white-100":
             active,
         },
         className
@@ -97,7 +97,7 @@ const SegmentControlRoot = React.forwardRef<
   return (
     <div
       className={SubframeUtils.twClassNames(
-        "group/55b22a30 flex h-10 w-full items-center justify-center rounded-full bg-page-bg px-0.5 py-0.5",
+        "group/55b22a30 flex h-10 w-full items-center justify-center rounded-full px-0.5 py-0.5",
         { "border-none bg-transparent": variant2 === "light-bg" },
         className
       )}

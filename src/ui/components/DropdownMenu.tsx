@@ -90,7 +90,7 @@ const DropdownMenuRoot = React.forwardRef<
   return children ? (
     <div
       className={SubframeUtils.twClassNames(
-        "flex min-w-[192px] flex-col items-start rounded-lg border border-solid border-new-gray-10 bg-new-white-70 px-2 py-2 shadow-lg backdrop-blur",
+        "flex min-w-[192px] flex-col items-start rounded-lg border border-solid border-new-gray-10 bg-new-white-70 px-2 py-2 shadow-lg backdrop-blur z-[60]",
         className
       )}
       ref={ref}

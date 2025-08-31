@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { TextField } from "@/ui/components/TextField";
 import { FeatherChevronDown, FeatherSearch } from "@subframe/core";
+import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
 
 interface Option {
   id: string;
@@ -68,15 +69,15 @@ export function SearchableSelect({
     <div className={`relative h-10 grow shrink-0 basis-0 ${className}`} ref={dropdownRef}>
       {/* Campo de entrada principal */}
       <div 
-        className={`h-10 w-full rounded-md border border-solid bg-default-background px-3 py-2 cursor-pointer flex items-center justify-between ${
-          disabled ? 'border-neutral-border bg-neutral-50 cursor-not-allowed' : 'border-neutral-border hover:border-neutral-300'
+        className={`h-10 w-full rounded-sm border-none bg-neutral-100 px-3 py-2 cursor-pointer flex items-center justify-between hover:bg-neutral-200 focus-within:!border focus-within:!border-solid focus-within:!border-brand-primary focus-within:!bg-white ${
+          disabled ? 'bg-neutral-200 cursor-not-allowed' : ''
         }`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span className={`text-body-medium flex-grow ${
           selectedOption ? 'text-default-font' : 'text-neutral-400'
         }`}>
-          {selectedOption ? selectedOption.name : placeholder}
+          {selectedOption ? formatPatientNameForDisplay(selectedOption.name) : placeholder}
         </span>
         <FeatherChevronDown 
           className={`h-4 w-4 text-neutral-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
@@ -121,7 +122,7 @@ export function SearchableSelect({
                   }`}
                   onClick={() => handleOptionClick(option.id)}
                 >
-                  {option.name}
+                  {formatPatientNameForDisplay(option.name)}
                 </div>
               ))
             )}
