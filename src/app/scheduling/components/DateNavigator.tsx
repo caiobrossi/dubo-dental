@@ -91,8 +91,9 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
             align="center"
             sideOffset={4}
             asChild={true}
+            className="z-[100]"
           >
-            <div className="flex flex-col items-start gap-4 rounded-md bg-new-white-30 px-3 py-3 shadow-lg backdrop-blur-md">
+            <div className="flex flex-col items-start gap-4 rounded-md bg-new-white-30 px-3 py-3 shadow-lg backdrop-blur-md z-[100]">
               {/* Calendar grids */}
               <div className="flex w-full grow shrink-0 basis-0 items-start justify-center gap-20 px-2 py-2">
                 <Calendar

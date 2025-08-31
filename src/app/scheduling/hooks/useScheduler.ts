@@ -183,6 +183,20 @@ export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedT
     // Calcular offset vertical dentro do slot inicial
     const topOffset = (startMin / 60) * LAYOUT_CONSTANTS.SLOT_HEIGHT;
     
+    // Debug logging for multi-hour appointments
+    if (durationMinutes > 60) {
+      console.log(`📏 Multi-hour appointment calculation:`, {
+        patientName: appointment.patient_name,
+        timeRange: `${appointment.start_time} - ${appointment.end_time}`,
+        durationMinutes,
+        durationHours: durationMinutes / 60,
+        calculatedHeight: height,
+        slotHeight: LAYOUT_CONSTANTS.SLOT_HEIGHT,
+        topOffset,
+        startMin
+      });
+    }
+    
 
     return {
       widthPercentage,

@@ -142,13 +142,27 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   };
 
   // Determinar quais informações mostrar baseado no tamanho
-  const showTime = layout.widthPercentage > 30; // Sempre mostrar horário se possível
+  // Priorizar nome do paciente quando o espaço for limitado
+  const showTime = layout.widthPercentage > 50; // Só mostrar horário quando houver espaço suficiente
   const showProcedure = layout.height > 35 && layout.widthPercentage > 50;
 
   // Obter estilos baseado no status
   const styles = getStatusStyles(appointment.status || 'scheduled');
   
-  // Sistema de cores funcionando corretamente
+  // Debug logging for multi-hour appointments
+  if (layout.height > 80) {
+    console.log(`🎨 AppointmentCard rendering:`, {
+      patientName: appointment.patient_name,
+      timeRange: `${appointment.start_time} - ${appointment.end_time}`,
+      layoutHeight: layout.height,
+      topOffset: layout.topOffset,
+      slotHeight: 80,
+      calculatedStyle: {
+        height: `${layout.height}px`,
+        top: `${LAYOUT_CONSTANTS.SLOT_PADDING + layout.topOffset}px`
+      }
+    });
+  }
 
   // Calculate adjusted width and left position for side-by-side appointments
   const hasOverlap = layout.widthPercentage < 100;
@@ -169,7 +183,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
     minHeight: `${LAYOUT_CONSTANTS.MIN_CARD_HEIGHT}px`,
     borderRadius: '4px',
     boxSizing: 'border-box' as const,
-    zIndex: isDragging ? 1000 : (layout.height > 80 ? 50 : 20), // Higher z-index for multi-hour appointments
+    zIndex: isDragging ? 50 : (layout.height > 80 ? 30 : 10), // Higher z-index for multi-hour appointments
     opacity: isDragging ? 0.5 : 1
   } : {
     height: `${layout.height}px`,
@@ -179,14 +193,14 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
     minHeight: `${LAYOUT_CONSTANTS.MIN_CARD_HEIGHT}px`,
     borderRadius: '4px',
     boxSizing: 'border-box' as const,
-    zIndex: layout.height > 80 ? 50 : 20 // Higher z-index for multi-hour appointments
+    zIndex: layout.height > 80 ? 30 : 10 // Higher z-index for multi-hour appointments
   };
 
   return (
     <div
       ref={setNodeRef}
       data-appointment-id={appointment.id}
-      className={`${styles.bg} ${styles.border} px-2 py-1 text-xs absolute overflow-hidden shadow-sm cursor-pointer ${styles.hover} transition-all duration-300 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} relative`}
+      className={`${styles.bg} ${styles.border} px-2 py-1 text-xs absolute shadow-sm cursor-pointer ${styles.hover} transition-all duration-300 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={style}
       onClick={handleClick}
       title={`${appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'} - ${timeUtils.formatTimeWithoutSeconds(appointment.start_time)} - ${timeUtils.formatTimeWithoutSeconds(appointment.end_time)} - ${appointment.status?.toUpperCase()}`}
@@ -195,23 +209,39 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
     >
       {/* Status indicator overlay */}
       <StatusIndicator status={appointment.status || 'scheduled'} styles={styles} />
-      {/* Primeira linha: Nome do paciente + Horário */}
-      <div className="flex items-center justify-between w-full mb-1">
-        <div className={`font-semibold ${styles.textPrimary} truncate leading-tight text-xs flex-1 mr-1`}>
-          {appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'}
-        </div>
-        {showTime && (
-          <div className={`${styles.textSecondary} text-xs leading-tight whitespace-nowrap`}>
-            {timeUtils.formatTimeWithoutSeconds(appointment.start_time)} - {timeUtils.formatTimeWithoutSeconds(appointment.end_time)}
+      
+      {/* Layout adaptativo baseado no espaço disponível */}
+      {showTime ? (
+        <>
+          {/* Layout normal: Nome + Horário na mesma linha */}
+          <div className="flex items-center justify-between w-full mb-1">
+            <div className={`font-semibold ${styles.textPrimary} truncate leading-tight text-xs flex-1 mr-1`}>
+              {appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'}
+            </div>
+            <div className={`${styles.textSecondary} text-xs leading-tight whitespace-nowrap`}>
+              {timeUtils.formatTimeWithoutSeconds(appointment.start_time)} - {timeUtils.formatTimeWithoutSeconds(appointment.end_time)}
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Segunda linha: Procedimentos */}
-      {showProcedure && (
-        <div className={`${styles.textSecondary} truncate text-xs leading-tight`}>
-          {appointment.appointment_type || appointment.notes || 'Consulta'}
-        </div>
+          {/* Segunda linha: Procedimentos */}
+          {showProcedure && (
+            <div className={`${styles.textSecondary} truncate text-xs leading-tight`}>
+              {appointment.appointment_type || appointment.notes || 'Consulta'}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Layout compacto: Apenas nome do paciente (prioridade) */}
+          <div className={`font-semibold ${styles.textPrimary} truncate leading-tight text-xs w-full`}>
+            {appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'}
+          </div>
+          {/* Se houver espaço vertical, mostrar o horário abaixo */}
+          {layout.height > 30 && (
+            <div className={`${styles.textSecondary} text-xs leading-tight truncate mt-0.5`}>
+              {timeUtils.formatTimeWithoutSeconds(appointment.start_time)}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -22,18 +22,28 @@ export const useSchedulingSearch = (appointments: Appointment[]) => {
     }
 
     const normalizedSearch = searchTerm.toLowerCase().trim();
+    
+    // Split search terms for more flexible matching
+    const searchTerms = normalizedSearch.split(' ').filter(term => term.length > 0);
 
     const filteredResults = appointments.filter(appointment => {
       const patientName = (appointment.patient_name || '').toLowerCase();
       const procedureType = (appointment.appointment_type || '').toLowerCase();
-
-      return patientName.includes(normalizedSearch) || 
-             procedureType.includes(normalizedSearch);
+      const professionalName = (appointment.professional_name || '').toLowerCase();
+      const notes = (appointment.notes || '').toLowerCase();
+      
+      // Check if all search terms match somewhere in the appointment data
+      return searchTerms.every(term => 
+        patientName.includes(term) || 
+        procedureType.includes(term) ||
+        professionalName.includes(term) ||
+        notes.includes(term)
+      );
     }).map(appointment => ({
       appointment,
       matches: {
-        patientName: (appointment.patient_name || '').toLowerCase().includes(normalizedSearch),
-        procedureType: (appointment.appointment_type || '').toLowerCase().includes(normalizedSearch)
+        patientName: searchTerms.some(term => (appointment.patient_name || '').toLowerCase().includes(term)),
+        procedureType: searchTerms.some(term => (appointment.appointment_type || '').toLowerCase().includes(term))
       }
     }));
 
@@ -47,7 +57,7 @@ export const useSchedulingSearch = (appointments: Appointment[]) => {
       return a.appointment.start_time.localeCompare(b.appointment.start_time);
     });
 
-    return filteredResults.slice(0, 8); // Limit to 8 results for performance
+    return filteredResults.slice(0, 15); // Limit to 15 results for better user experience
   }, [appointments]);
 
   const openDropdown = useCallback(() => setIsOpen(true), []);

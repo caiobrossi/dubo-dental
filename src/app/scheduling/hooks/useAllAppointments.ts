@@ -25,7 +25,6 @@ export const useAllAppointments = () => {
         .from('appointments')
         .select('*')
         .gte('appointment_date', todayStr)
-        .in('status', ['scheduled', 'confirmed'])
         .order('appointment_date', { ascending: true })
         .order('start_time', { ascending: true });
 

@@ -1,7 +1,8 @@
 import React, { memo, useState, useEffect, useRef } from 'react';
 import { Button } from "@/ui/components/Button";
 import { TextField } from "@/ui/components/TextField";
-import { FeatherSearch, FeatherPlus } from "@subframe/core";
+import { IconButton } from "@/ui/components/IconButton";
+import { FeatherSearch, FeatherPlus, FeatherX } from "@subframe/core";
 import { AppointmentModalType, Appointment } from '../types';
 import { useSchedulingSearch } from '../hooks/useSchedulingSearch';
 import { SearchDropdown } from './SearchDropdown';
@@ -55,6 +56,12 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
     setSearchResults([]);
   };
 
+  const handleClearSearch = () => {
+    onSearchChange('');
+    setSearchResults([]);
+    closeDropdown();
+  };
+
   return (
     <div className="flex w-full flex-none items-center justify-between px-8 py-2 bg-default-background border-b border-solid border-neutral-border">
       <div className="flex flex-col items-start gap-2">
@@ -64,19 +71,36 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
       </div>
       
       <div ref={searchContainerRef} className="relative h-10 max-w-[768px] grow shrink-0 basis-0">
-        <TextField
-          className="h-full w-full"
-          label=""
-          helpText=""
-          icon={<FeatherSearch />}
-        >
-          <TextField.Input
-            placeholder="Search appointments..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            onFocus={handleSearchFocus}
-          />
-        </TextField>
+        <div className="relative h-full w-full">
+          <TextField
+            className="h-full w-full [&>div]:rounded-full [&>div]:bg-neutral-100 [&>div]:hover:bg-neutral-200 [&>div]:transition-colors [&>div]:border-0 [&>div]:shadow-none [&>div:focus-within]:!bg-white [&>div:focus-within]:ring-0 [&>div:focus-within]:outline-none"
+            label=""
+            helpText=""
+            icon={<FeatherSearch />}
+          >
+            <TextField.Input
+              placeholder="Search appointments..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onFocus={handleSearchFocus}
+              className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0 pr-10"
+            />
+          </TextField>
+          
+          {/* Clear button */}
+          {searchTerm && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+              <IconButton
+                size="small"
+                variant="neutral-tertiary"
+                icon={<FeatherX />}
+                onClick={handleClearSearch}
+                disabled={false}
+                loading={false}
+              />
+            </div>
+          )}
+        </div>
         
         <SearchDropdown
           results={searchResults}
