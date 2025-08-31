@@ -2,7 +2,7 @@ import React, { memo, useState, useEffect, useRef } from 'react';
 import { Button } from "@/ui/components/Button";
 import { TextField } from "@/ui/components/TextField";
 import { IconButton } from "@/ui/components/IconButton";
-import { FeatherSearch, FeatherPlus, FeatherX } from "@subframe/core";
+import { FeatherSearch, FeatherPlus, FeatherX, FeatherCalendar, FeatherSettings } from "@subframe/core";
 import { AppointmentModalType, Appointment } from '../types';
 import { useSchedulingSearch } from '../hooks/useSchedulingSearch';
 import { SearchDropdown } from './SearchDropdown';
@@ -13,6 +13,7 @@ interface SchedulingHeaderProps {
   onSearchChange: (value: string) => void;
   onAddClick: (type: AppointmentModalType) => void;
   onAppointmentSelect: (appointment: Appointment) => void;
+  onCalendarToggle: () => void;
 }
 
 /**
@@ -23,7 +24,8 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
   appointments,
   onSearchChange,
   onAddClick,
-  onAppointmentSelect
+  onAppointmentSelect,
+  onCalendarToggle
 }) => {
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const { searchAppointments, isOpen, openDropdown, closeDropdown } = useSchedulingSearch(appointments);
@@ -111,6 +113,26 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
       </div>
       
       <div className="flex items-center gap-2">
+        <IconButton
+          size="large"
+          variant="neutral-tertiary"
+          icon={<FeatherSettings />}
+          onClick={() => {
+            // TODO: Implement settings functionality
+          }}
+          disabled={false}
+          loading={false}
+        />
+        
+        <IconButton
+          size="large"
+          variant="neutral-tertiary"
+          icon={<FeatherCalendar />}
+          onClick={onCalendarToggle}
+          disabled={false}
+          loading={false}
+        />
+        
         <Button
           disabled={false}
           variant="neutral-secondary"

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import NewAppointmentModal from "@/components/custom/NewAppointmentModal";
 
@@ -8,12 +8,14 @@ import NewAppointmentModal from "@/components/custom/NewAppointmentModal";
 import { SchedulingHeader } from "./SchedulingHeader";
 import { DateNavigator } from "./DateNavigator";
 import { SchedulingGrid } from "./SchedulingGrid";
+import { CalendarPanel } from "./CalendarPanel";
 
 // Hooks
 import { useSchedulingData } from "../hooks/useSchedulingData";
 import { useSchedulingModal } from "../hooks/useSchedulingModal";
 import { useAppointmentNavigation } from "../hooks/useAppointmentNavigation";
 import { useAllAppointments } from "../hooks/useAllAppointments";
+import { useCalendarPanel } from "../hooks/useCalendarPanel";
 
 // Types
 import { ViewMode, Appointment, BlockedTime } from "../types";
@@ -29,13 +31,18 @@ import { ViewMode, Appointment, BlockedTime } from "../types";
  * - Clean, maintainable code structure
  */
 const SchedulingPage: React.FC = () => {
-  // State management
+  // State management - ALL hooks MUST be declared first
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
+
+  // Debug logging
+  console.log('SchedulingPage render - viewMode:', viewMode, 'selectedDate:', selectedDate);
 
   // Custom hooks for data and modal management
+  // Reactivating with original parameters
   const { 
     appointments, 
     blockedTimes, 
@@ -44,12 +51,13 @@ const SchedulingPage: React.FC = () => {
     refreshData 
   } = useSchedulingData(selectedDate, viewMode);
 
-  // Hook for search - loads ALL future appointments
+  // Hook for search - reactivating
   const { 
     allAppointments, 
     refreshAllAppointments 
   } = useAllAppointments();
 
+  // Modal hooks - reactivating
   const {
     isOpen: showAppointmentModal,
     modalType,
@@ -65,8 +73,16 @@ const SchedulingPage: React.FC = () => {
     setEditingAppointment(null);
   }, [originalCloseModal]);
 
-  // Navigation hook for search functionality
+  // Navigation hook - reactivating
   const { scrollContainerRef, scrollToAppointment } = useAppointmentNavigation();
+  
+  // Calendar panel hook - reactivating
+  const { isOpen: isPanelOpen, togglePanel, closePanel } = useCalendarPanel();
+  
+  // Removed useEffect to prevent loops
+
+  // Removed loading and error states to fix hooks issue
+  // TODO: Re-implement loading/error states without early returns
 
   // Event handlers with useCallback for performance
   const handleSearchChange = useCallback((value: string) => {
@@ -93,6 +109,10 @@ const SchedulingPage: React.FC = () => {
 
   const handleDateChange = useCallback((date: Date) => {
     setSelectedDate(date);
+  }, []);
+
+  const handleProfessionalChange = useCallback((professionalId: string) => {
+    setSelectedProfessional(professionalId);
   }, []);
 
   const handleAppointmentCreated = useCallback(() => {
@@ -142,6 +162,14 @@ const SchedulingPage: React.FC = () => {
     }
   }, [refreshData, refreshAllAppointments]);
 
+  // Filter appointments by selected professional
+  const filteredAppointments = useMemo(() => {
+    if (selectedProfessional === 'all') {
+      return appointments;
+    }
+    return appointments.filter(apt => apt.professional_id === selectedProfessional);
+  }, [appointments, selectedProfessional]);
+
   // Handle loading and error states
   if (loading && appointments.length === 0) {
     return (
@@ -183,31 +211,43 @@ const SchedulingPage: React.FC = () => {
           onSearchChange={handleSearchChange}
           onAddClick={handleAddClick}
           onAppointmentSelect={handleAppointmentSelect}
+          onCalendarToggle={togglePanel}
         />
 
         {/* Main scheduling area */}
-        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start bg-white overflow-auto">
-          {/* Controls row - now consolidated into DateNavigator */}
-          <DateNavigator
-            selectedDate={selectedDate}
-            viewMode={viewMode}
-            onDateChange={handleDateChange}
-            onViewModeChange={handleViewModeChange}
-          />
+        <div className="flex w-full grow shrink-0 basis-0 items-stretch bg-white">
+          {/* Main calendar area - takes remaining space */}
+          <div className="flex flex-1 min-w-0 flex-col items-start overflow-hidden">
+            {/* Date navigation controls */}
+            <DateNavigator
+              selectedDate={selectedDate}
+              viewMode={viewMode}
+              selectedProfessional={selectedProfessional}
+              onDateChange={handleDateChange}
+              onViewModeChange={handleViewModeChange}
+              onProfessionalChange={handleProfessionalChange}
+            />
 
-          {/* Scheduling grid */}
-          <SchedulingGrid
-            ref={scrollContainerRef}
-            selectedDate={selectedDate}
-            viewMode={viewMode}
-            appointments={appointments}
-            blockedTimes={blockedTimes}
-            onSlotClick={handleSlotClick}
-            onAppointmentClick={handleAppointmentClick}
-            onBlockedTimeClick={handleBlockedTimeClick}
-            onAppointmentStatusUpdate={refreshData}
-            onEditAppointment={handleEditAppointment}
-            onDeleteAppointment={handleDeleteAppointment}
+            {/* Scheduling grid */}
+            <SchedulingGrid
+              ref={scrollContainerRef}
+              selectedDate={selectedDate}
+              viewMode={viewMode}
+              appointments={filteredAppointments}
+              blockedTimes={blockedTimes}
+              onSlotClick={handleSlotClick}
+              onAppointmentClick={handleAppointmentClick}
+              onBlockedTimeClick={handleBlockedTimeClick}
+              onAppointmentStatusUpdate={refreshData}
+              onEditAppointment={handleEditAppointment}
+              onDeleteAppointment={handleDeleteAppointment}
+            />
+          </div>
+          
+          {/* Calendar Panel - Re-enabled after fixing hooks issue */}
+          <CalendarPanel
+            isOpen={isPanelOpen}
+            onClose={closePanel}
           />
         </div>
       </div>

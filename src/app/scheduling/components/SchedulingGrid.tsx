@@ -94,6 +94,63 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
     []
   );
 
+
+  // Update time indicators every minute
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      setCurrentTime(new Date());
+    };
+
+    updateCurrentTime();
+    const interval = setInterval(updateCurrentTime, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Recalculate positions when current time changes
+  const updatedTimeIndicatorPositions = useMemo(() => {
+    return displayDays.map(date => {
+      if (!isToday(date)) {
+        return null;
+      }
+
+      const hours = currentTime.getHours();
+      const minutes = currentTime.getMinutes();
+
+      const isInBusinessHours = 
+        (hours >= 9 && hours <= 23) || (hours >= 1 && hours <= 8) || hours === 0;
+
+      if (!isInBusinessHours) {
+        return null;
+      }
+
+      const slotHeight = 80;
+      const minutePercentage = minutes / 60;
+      
+      let slotIndex;
+      if (hours >= 9 && hours <= 20) {
+        slotIndex = hours - 9;
+      } else if (hours >= 21 && hours <= 23) {
+        slotIndex = (hours - 21) + 12;
+      } else if (hours === 0) {
+        slotIndex = 15;
+      } else {
+        slotIndex = (hours - 1) + 16;
+      }
+
+      const topPosition = (slotIndex * slotHeight) + (minutePercentage * slotHeight);
+      
+      return {
+        top: topPosition,
+        hour: hours,
+        minute: minutes,
+        timeString: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+      };
+    });
+  }, [displayDays, currentTime]);
+
   // Auto-scroll to current time on mount and when view changes
   useEffect(() => {
     // Small delay to ensure DOM is fully rendered
@@ -406,7 +463,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
           {displayDays.map((date, index) => {
             const isLastColumn = index === displayDays.length - 1;
             const isFirstColumn = index === 0;
-            const timeIndicatorPosition = useCurrentTimePosition(date);
+            const timeIndicatorPosition = updatedTimeIndicatorPositions[index];
             
             return (
               <div 
