@@ -73,13 +73,13 @@ const getStatusStyles = (status: AppointmentStatus) => {
       };
     case 'complete':
       return {
-        bg: 'bg-green-100',
-        border: 'border-l-4 border-green-600',
-        textPrimary: 'text-green-900',
-        textSecondary: 'text-green-800',
-        hover: 'hover:bg-green-200',
-        shadow: 'shadow-green-100',
-        accent: 'bg-green-600',
+        bg: 'bg-white',
+        border: 'border-l-4 border-gray-500',
+        textPrimary: 'text-neutral-900',
+        textSecondary: 'text-neutral-600',
+        hover: 'hover:bg-neutral-50',
+        shadow: 'shadow-sm',
+        accent: 'bg-gray-500',
         pattern: 'checkmark'
       };
     default:

@@ -174,26 +174,57 @@ export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedT
     const durationMinutes = timeUtils.getDurationMinutes(appointment.start_time, appointment.end_time);
     const startMin = parseInt(appointment.start_time.split(':')[1]);
     
-    // Calcular altura baseada na duração real em slots de hora
+    // Calcular quantos minutos o appointment se estende dentro do primeiro slot
+    const minutesInFirstSlot = Math.min(60 - startMin, durationMinutes);
+    
+    // Aplicar ajuste visual em duas situações:
+    // 1. Cards que começam tarde no slot (xx:30 ou xx:45)
+    // 2. Cards que se aproximam da borda inferior do slot (ocupam 55+ minutos)
+    let visualAdjustment = 0;
+    
+    // Situação 1: Cards que começam tarde no slot
+    if (startMin >= 45) {
+      visualAdjustment = 7; // Maior ajuste para cards começando aos 45
+    } else if (startMin >= 30) {
+      visualAdjustment = 5; // Ajuste médio para cards começando aos 30
+    }
+    
+    // Situação 2: Cards que se aproximam da borda (independente de onde começam)
+    // Se ainda não tem ajuste E ocupa quase todo o slot
+    if (visualAdjustment === 0 && minutesInFirstSlot >= 55) {
+      visualAdjustment = 5; // Aplicar ajuste para evitar overflow
+    }
+    
+    // Aplicar o ajuste visual à duração
+    const adjustedDuration = Math.max(
+      LAYOUT_CONSTANTS.MIN_CARD_HEIGHT * 60 / LAYOUT_CONSTANTS.SLOT_HEIGHT, // Minimum duration in minutes
+      durationMinutes - visualAdjustment
+    );
+    
+    // Calcular altura baseada na duração ajustada
     const height = Math.max(
       LAYOUT_CONSTANTS.MIN_CARD_HEIGHT, 
-      (durationMinutes / 60) * LAYOUT_CONSTANTS.SLOT_HEIGHT
+      (adjustedDuration / 60) * LAYOUT_CONSTANTS.SLOT_HEIGHT
     );
 
     // Calcular offset vertical dentro do slot inicial
     const topOffset = (startMin / 60) * LAYOUT_CONSTANTS.SLOT_HEIGHT;
     
-    // Debug logging for multi-hour appointments
-    if (durationMinutes > 60) {
-      console.log(`📏 Multi-hour appointment calculation:`, {
+    // Debug logging for multi-hour appointments or adjusted appointments
+    if (durationMinutes > 60 || visualAdjustment > 0) {
+      console.log(`📏 Appointment calculation:`, {
         patientName: appointment.patient_name,
         timeRange: `${appointment.start_time} - ${appointment.end_time}`,
         durationMinutes,
-        durationHours: durationMinutes / 60,
+        startMin,
+        minutesInFirstSlot,
+        visualAdjustment,
+        adjustedDuration,
         calculatedHeight: height,
         slotHeight: LAYOUT_CONSTANTS.SLOT_HEIGHT,
         topOffset,
-        startMin
+        lateStart: startMin >= 30,
+        approachesSlotBottom: minutesInFirstSlot >= 55
       });
     }
     

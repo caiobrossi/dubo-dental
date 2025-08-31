@@ -51,6 +51,7 @@ interface TimeSlotProps {
   allDayAppointments: Appointment[];
   blockedTimes: BlockedTime[];
   isLastColumn: boolean;
+  isFirstColumn: boolean;
   onSlotClick: (date: Date, hour: number) => void;
   onAppointmentClick: (appointment: Appointment, event?: React.MouseEvent) => void;
   onBlockedTimeClick: (blockedTime: BlockedTime) => void;
@@ -66,6 +67,7 @@ export const TimeSlot = memo<TimeSlotProps>(({
   allDayAppointments,
   blockedTimes,
   isLastColumn,
+  isFirstColumn,
   onSlotClick,
   onAppointmentClick,
   onBlockedTimeClick
@@ -109,6 +111,7 @@ export const TimeSlot = memo<TimeSlotProps>(({
         flex h-20 w-full flex-none flex-col items-start gap-1 
         ${!isLastColumn ? 'border-r' : ''} 
         ${!shouldRemoveBorder ? 'border-b' : ''} 
+        ${isFirstColumn ? 'border-l' : ''}
         border-solid border-neutral-border pl-0.5 pr-1 pt-0.5 pb-0.5 
         hover:bg-neutral-50 cursor-pointer relative overflow-visible
         ${isBlockedSlot ? 'bg-neutral-50' : ''}

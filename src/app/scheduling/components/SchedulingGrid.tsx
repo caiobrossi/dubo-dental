@@ -278,6 +278,22 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
     const appointment = appointments.find(apt => apt.id === appointmentId);
     if (!appointment) return;
     
+    // Format the new date and time for display
+    const formattedDate = new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+    const formattedTime = `${hour.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+    
+    // Show confirmation dialog
+    const confirmMessage = `Do you want to reschedule this appointment to ${formattedDate} at ${formattedTime}?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      // User cancelled, don't update
+      return;
+    }
+    
     // Calculate new end time based on appointment duration
     const startTime = new Date(`2000-01-01T${appointment.start_time}`);
     const endTime = new Date(`2000-01-01T${appointment.end_time}`);
@@ -302,6 +318,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
 
       if (error) {
         console.error('Error updating appointment:', error);
+        alert('Failed to reschedule appointment. Please try again.');
         return;
       }
 
@@ -311,6 +328,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
       }
     } catch (error) {
       console.error('Error updating appointment:', error);
+      alert('Failed to reschedule appointment. Please try again.');
     }
   };
 
@@ -324,10 +342,10 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
       <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
         {/* Fixed header with day names */}
       <div className="flex w-full overflow-x-auto">
-        <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-t-rounded-xlarge border-t-2 border-l-2 border-r-2 border-b border-solid border-new-white-100 bg-default-background">
+        <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-t-rounded-xlarge border-t-2 border-r-2 border-solid border-new-white-100 bg-default-background">
           {/* Empty corner cell for time column */}
           <div className="flex w-16 flex-none flex-col items-start">
-            <div className="flex h-16 w-full flex-none flex-col items-start gap-2 border-r border-b border-solid border-neutral-border px-2 py-2" />
+            <div className="flex h-16 w-full flex-none flex-col items-start gap-2 border-r border-solid border-white px-2 py-2" />
           </div>
           
           {/* Day headers */}
@@ -342,7 +360,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
                   minWidth: viewMode === 'day' ? '100%' : '160px' 
                 }}
               >
-                <div className="flex h-16 w-full flex-none items-center justify-center gap-2 border-b-2 border-solid border-neutral-border px-2 py-2">
+                <div className="flex h-16 w-full flex-none items-center justify-center gap-2 px-2 py-2">
                   <div className="flex items-center gap-2">
                     {today ? (
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black">
@@ -368,7 +386,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
       
       {/* Scrollable content with time slots */}
       <div ref={ref || scrollContainerRef} className="flex w-full grow shrink-0 basis-0 items-start overflow-auto">
-        <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-b-rounded-xlarge border-b-2 border-l-2 border-r-2 border-solid border-new-white-100 bg-new-white-50 relative">
+        <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-b-rounded-xlarge border-b-2 border-r-2 border-solid border-new-white-100 bg-new-white-50 relative">
           {/* Time column */}
           <div className="flex w-16 flex-none flex-col items-start">
             {/* Hour labels */}
@@ -387,12 +405,13 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
           {/* Day columns with time slots */}
           {displayDays.map((date, index) => {
             const isLastColumn = index === displayDays.length - 1;
+            const isFirstColumn = index === 0;
             const timeIndicatorPosition = useCurrentTimePosition(date);
             
             return (
               <div 
                 key={index} 
-                className="flex w-full flex-1 flex-col items-start relative overflow-visible" 
+                className={`flex w-full flex-1 flex-col items-start relative overflow-visible ${isFirstColumn ? '-ml-px' : ''}`}
                 style={{ 
                   minWidth: viewMode === 'day' ? '100%' : '160px' 
                 }}
@@ -421,6 +440,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
                       allDayAppointments={dayAppointments}
                       blockedTimes={slotBlockedTimes}
                       isLastColumn={isLastColumn}
+                      isFirstColumn={isFirstColumn}
                       onSlotClick={onSlotClick}
                       onAppointmentClick={handleAppointmentClick}
                       onBlockedTimeClick={onBlockedTimeClick}
