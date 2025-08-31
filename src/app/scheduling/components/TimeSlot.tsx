@@ -1,4 +1,5 @@
 import React, { memo, useMemo } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { Appointment, BlockedTime } from '../types';
 import { 
   formatTimeHM, 
@@ -11,6 +12,38 @@ import { formatPatientNameForDisplay } from '../utils/nameUtils';
 import { useScheduler } from '../hooks/useScheduler';
 import { AppointmentCard } from './AppointmentCard';
 
+// Quarter-hour drop zone component
+const QuarterHourDropZone: React.FC<{
+  id: string;
+  minutes: number;
+  hour: number;
+  children?: React.ReactNode;
+}> = ({ id, minutes, hour, children }) => {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  
+  return (
+    <div
+      ref={setNodeRef}
+      className={`
+        absolute left-0 right-0 transition-colors duration-200
+        ${isOver ? 'bg-blue-100 border-2 border-blue-400 border-dashed rounded-md' : ''}
+      `}
+      style={{
+        top: `${minutes / 15 * 25}%`,
+        height: '25%',
+        zIndex: 1
+      }}
+    >
+      {isOver && (
+        <div className="absolute top-1 left-1 text-xs text-blue-600 font-semibold bg-blue-50 px-1 rounded">
+          {String(hour).padStart(2, '0')}:{String(minutes).padStart(2, '0')}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+};
+
 interface TimeSlotProps {
   date: Date;
   hour: number;
@@ -19,7 +52,7 @@ interface TimeSlotProps {
   blockedTimes: BlockedTime[];
   isLastColumn: boolean;
   onSlotClick: (date: Date, hour: number) => void;
-  onAppointmentClick: (appointment: Appointment) => void;
+  onAppointmentClick: (appointment: Appointment, event?: React.MouseEvent) => void;
   onBlockedTimeClick: (blockedTime: BlockedTime) => void;
 }
 
@@ -37,6 +70,13 @@ export const TimeSlot = memo<TimeSlotProps>(({
   onAppointmentClick,
   onBlockedTimeClick
 }) => {
+  // Create quarter-hour drop zones (00, 15, 30, 45)
+  const quarterHours = [0, 15, 30, 45];
+  const dropZones = quarterHours.map(minutes => ({
+    minutes,
+    id: `slot-${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}-${hour}-${minutes.toString().padStart(2, '0')}`
+  }));
+
   const hasContent = appointments.length > 0 || blockedTimes.length > 0;
   const shouldRemoveBorder = shouldRemoveBottomBorder(blockedTimes, date, hour);
   const isBlockedSlot = blockedTimes.length > 0;
@@ -53,9 +93,9 @@ export const TimeSlot = memo<TimeSlotProps>(({
     }
   };
 
-  const handleAppointmentClick = (e: React.MouseEvent, appointment: Appointment) => {
-    e.stopPropagation();
-    onAppointmentClick(appointment);
+  const handleAppointmentClick = (appointment: Appointment, event: React.MouseEvent) => {
+    event.stopPropagation();
+    onAppointmentClick(appointment, event);
   };
 
   const handleBlockedTimeClick = (e: React.MouseEvent, blockedTime: BlockedTime) => {
@@ -69,12 +109,21 @@ export const TimeSlot = memo<TimeSlotProps>(({
         flex h-20 w-full flex-none flex-col items-start gap-1 
         ${!isLastColumn ? 'border-r' : ''} 
         ${!shouldRemoveBorder ? 'border-b' : ''} 
-        border-solid border-neutral-border pl-1 pr-2 pt-1 pb-1 
-        hover:bg-neutral-50 cursor-pointer relative
+        border-solid border-neutral-border pl-0.5 pr-1 pt-0.5 pb-0.5 
+        hover:bg-neutral-50 cursor-pointer relative overflow-visible
         ${isBlockedSlot ? 'bg-neutral-50' : ''}
       `}
       onClick={handleSlotClick}
     >
+      {/* Quarter-hour drop zones */}
+      {dropZones.map((zone, index) => (
+        <QuarterHourDropZone
+          key={zone.id}
+          id={zone.id}
+          minutes={zone.minutes}
+          hour={hour}
+        />
+      ))}
       {/* Render blocked time info only in the first slot */}
       {blockedTimes.map((blockedTime) => 
         isFirstBlockedSlot(date, hour, blockedTime) ? (
@@ -113,10 +162,7 @@ export const TimeSlot = memo<TimeSlotProps>(({
             key={appointment.id}
             appointment={appointment}
             layout={layout}
-            onClick={(apt, event) => {
-              event.stopPropagation();
-              onAppointmentClick(apt);
-            }}
+            onClick={handleAppointmentClick}
           />
         );
       })}

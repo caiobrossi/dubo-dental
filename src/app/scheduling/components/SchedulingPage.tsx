@@ -33,6 +33,7 @@ const SchedulingPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   // Custom hooks for data and modal management
   const { 
@@ -53,10 +54,16 @@ const SchedulingPage: React.FC = () => {
     isOpen: showAppointmentModal,
     modalType,
     preSelectedDateTime,
-    closeModal,
+    closeModal: originalCloseModal,
     handleSlotClick,
     handleAddClick
   } = useSchedulingModal();
+
+  // Enhanced close modal handler to clear editing state
+  const closeModal = useCallback(() => {
+    originalCloseModal();
+    setEditingAppointment(null);
+  }, [originalCloseModal]);
 
   // Navigation hook for search functionality
   const { scrollContainerRef, scrollToAppointment } = useAppointmentNavigation();
@@ -91,6 +98,7 @@ const SchedulingPage: React.FC = () => {
   const handleAppointmentCreated = useCallback(() => {
     refreshData();
     refreshAllAppointments(); // Also refresh search data
+    setEditingAppointment(null); // Clear editing state
   }, [refreshData, refreshAllAppointments]);
 
   const handleAppointmentClick = useCallback((appointment: Appointment) => {
@@ -102,6 +110,37 @@ const SchedulingPage: React.FC = () => {
     // TODO: Implement blocked time editing functionality
     console.log('Edit blocked time:', blockedTime);
   }, []);
+
+  const handleEditAppointment = useCallback((appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    handleAddClick('appointment');
+  }, [handleAddClick]);
+
+  const handleDeleteAppointment = useCallback(async (appointment: Appointment) => {
+    if (window.confirm(`Are you sure you want to delete the appointment for ${appointment.patient_name}?`)) {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        
+        const { error } = await supabase
+          .from('appointments')
+          .delete()
+          .eq('id', appointment.id);
+
+        if (error) {
+          console.error('Error deleting appointment:', error);
+          alert('Error deleting appointment. Please try again.');
+          return;
+        }
+
+        // Refresh data after deletion
+        refreshData();
+        refreshAllAppointments();
+      } catch (error) {
+        console.error('Error deleting appointment:', error);
+        alert('Error deleting appointment. Please try again.');
+      }
+    }
+  }, [refreshData, refreshAllAppointments]);
 
   // Handle loading and error states
   if (loading && appointments.length === 0) {
@@ -166,6 +205,9 @@ const SchedulingPage: React.FC = () => {
             onSlotClick={handleSlotClick}
             onAppointmentClick={handleAppointmentClick}
             onBlockedTimeClick={handleBlockedTimeClick}
+            onAppointmentStatusUpdate={refreshData}
+            onEditAppointment={handleEditAppointment}
+            onDeleteAppointment={handleDeleteAppointment}
           />
         </div>
       </div>
@@ -178,6 +220,7 @@ const SchedulingPage: React.FC = () => {
         preSelectedDate={preSelectedDateTime?.date}
         preSelectedTime={preSelectedDateTime?.time}
         initialType={modalType}
+        editingAppointment={editingAppointment}
       />
     </DefaultPageLayout>
   );

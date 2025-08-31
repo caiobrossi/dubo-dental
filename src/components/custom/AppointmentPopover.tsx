@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FeatherCommand } from "@subframe/core";
 import { FeatherMoreVertical } from "@subframe/core";
 import { FeatherNotebookPen } from "@subframe/core";
 import { FeatherPhone } from "@subframe/core";
 import { FeatherRepeat } from "@subframe/core";
 import { FeatherUser } from "@subframe/core";
+import { FeatherEdit3 } from "@subframe/core";
+import { FeatherTrash2 } from "@subframe/core";
 import * as SubframeUtils from "../../ui/utils";
+import * as SubframeCore from "@subframe/core";
 import { IconButton } from "@/ui/components/IconButton";
 import { Select } from "@/ui/components/Select";
+import { DropdownMenu } from "@/ui/components/DropdownMenu";
 import { Appointment, AppointmentStatus } from "@/app/scheduling/hooks/useScheduler";
 import { supabase } from "@/lib/supabase";
 import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
@@ -119,6 +123,8 @@ interface AppointmentPopoverProps {
   popoverRef?: React.RefObject<HTMLDivElement>;
   onSelectOpen?: (open: boolean) => void;
   onStatusUpdate?: (appointmentId: string, newStatus: string) => void;
+  onEditAppointment?: (appointment: Appointment) => void;
+  onDeleteAppointment?: (appointment: Appointment) => void;
 }
 
 export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
@@ -127,10 +133,15 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
   onClose,
   popoverRef,
   onSelectOpen,
-  onStatusUpdate
+  onStatusUpdate,
+  onEditAppointment,
+  onDeleteAppointment
 }) => {
+  
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appointment.status || 'scheduled');
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -166,9 +177,6 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
     return time.substring(0, 5);
   };
 
-  // Debug removido - sistema funcionando corretamente
-
-
   // Função para atualizar status do appointment
   const handleStatusChange = async (newStatus: string) => {
     try {
@@ -197,8 +205,51 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
     }
   };
 
+  // Handle menu toggle
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  // Handle click outside menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+
+  // Prevent popover from closing when Select is being used
+  const handleSelectOpenChange = (open: boolean) => {
+    if (onSelectOpen) {
+      onSelectOpen(open);
+    }
+  };
+
+  // Handle actions
+  const handleEditClick = () => {
+    setShowMenu(false);
+    onEditAppointment?.(appointment);
+    onClose();
+  };
+
+  const handleDeleteClick = () => {
+    setShowMenu(false);
+    onDeleteAppointment?.(appointment);
+    onClose();
+  };
+
   return (
-    <>      
+    <>
       {/* Popover card - exact design from SchedulingCardDetails */}
       <div 
         ref={popoverRef}
@@ -212,27 +263,25 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
         <AppointmentStatusBar
           timeSlot={`${formatTime(appointment.start_time)} - ${formatTime(appointment.end_time)}`}
           select={
-            <Select 
-              className="[&_button]:!bg-transparent [&_button]:!border-none [&_button:hover]:!bg-white/10 [&_span]:!text-white [&_svg]:!text-white [&>div]:!bg-transparent [&>div]:!border-none [&>div>button]:!bg-transparent [&>div>button]:!border-none [&>div>button]:!outline-none"
-              style={{ 
-                background: 'transparent',
-                border: 'none'
-              }}
-              label="" 
-              placeholder="Status"
-              helpText=""
-              value={currentStatus}
-              onValueChange={handleStatusChange}
-              onOpenChange={onSelectOpen}
-            >
-              <Select.Item value="scheduled">Scheduled</Select.Item>
-              <Select.Item value="confirmed">Confirmed</Select.Item>
-              <Select.Item value="cancelled">Cancelled</Select.Item>
-              <Select.Item value="no-show">No Show</Select.Item>
-              <Select.Item value="waiting">Waiting</Select.Item>
-              <Select.Item value="in-progress">In Progress</Select.Item>
-              <Select.Item value="complete">Complete</Select.Item>
-            </Select>
+            <div onClick={(e) => e.stopPropagation()}>
+              <Select 
+                className="[&_button]:!bg-transparent [&_button]:!border-none [&_button:hover]:!bg-white/10 [&_span]:!text-white [&_svg]:!text-white [&>div]:!bg-transparent [&>div]:!border-none [&>div>button]:!bg-transparent [&>div>button]:!border-none [&>div>button]:!outline-none"
+                label="" 
+                placeholder="Status"
+                helpText=""
+                value={currentStatus}
+                onValueChange={handleStatusChange}
+                onOpenChange={handleSelectOpenChange}
+              >
+                <Select.Item value="scheduled">Scheduled</Select.Item>
+                <Select.Item value="confirmed">Confirmed</Select.Item>
+                <Select.Item value="cancelled">Cancelled</Select.Item>
+                <Select.Item value="no-show">No Show</Select.Item>
+                <Select.Item value="waiting">Waiting</Select.Item>
+                <Select.Item value="in-progress">In Progress</Select.Item>
+                <Select.Item value="complete">Complete</Select.Item>
+              </Select>
+            </div>
           }
           variant={getStatusVariant(currentStatus)}
         />
@@ -246,12 +295,40 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
               {appointment.appointment_type || 'Consulta'}
             </span>
           </div>
-          <IconButton
-            disabled={false}
-            variant="neutral-secondary"
-            icon={<FeatherMoreVertical />}
-            loading={false}
-          />
+          <div className="relative" ref={menuRef}>
+            <IconButton
+              disabled={false}
+              variant="neutral-secondary"
+              icon={<FeatherMoreVertical />}
+              loading={false}
+              onClick={toggleMenu}
+            />
+            
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 z-50 flex min-w-[192px] flex-col items-start rounded-lg border border-solid border-new-gray-10 bg-new-white-70 px-2 py-2 shadow-lg backdrop-blur">
+                <div 
+                  onClick={handleEditClick}
+                  className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-3 hover:bg-gray-100 transition-colors"
+                >
+                  <FeatherEdit3 className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm text-gray-700">
+                    Edit Appointment
+                  </span>
+                </div>
+                
+                <div 
+                  onClick={handleDeleteClick}
+                  className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-3 hover:bg-red-50 transition-colors"
+                >
+                  <FeatherTrash2 className="w-4 h-4 text-red-600" />
+                  <span className="text-sm text-red-600">
+                    Delete Appointment
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          
         </div>
         
         <div className="flex w-full flex-col items-start rounded-lg bg-default-background [&>div:last-child]:border-b-0">

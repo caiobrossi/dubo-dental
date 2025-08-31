@@ -86,11 +86,11 @@ export const timeUtils = {
 // Constantes do layout
 export const LAYOUT_CONSTANTS = {
   SLOT_HEIGHT: 80,
-  SLOT_PADDING: 6, // Increased padding for better spacing
-  USABLE_HEIGHT: 68, // 80 - 12px (top+bottom padding)
-  PIXELS_PER_MINUTE: 68 / 60, // ~1.13px per minute
+  SLOT_PADDING: 2, // Reduced padding to match TimeSlot changes (pt-0.5 pb-0.5 = 4px total)
+  USABLE_HEIGHT: 76, // 80 - 4px (top+bottom padding)
+  PIXELS_PER_MINUTE: 76 / 60, // ~1.27px per minute
   MIN_CARD_HEIGHT: 20,
-  BASE_LEFT_OFFSET: 2, // Small offset from left edge
+  BASE_LEFT_OFFSET: 2, // Small offset from left edge  
   CARD_WIDTH_FACTOR: 0.94, // Width factor for cards
   CARD_GAP: 2 // Gap between side-by-side cards
 };
@@ -174,26 +174,15 @@ export const useScheduler = (appointments: Appointment[], blockedTimes: BlockedT
     const durationMinutes = timeUtils.getDurationMinutes(appointment.start_time, appointment.end_time);
     const startMin = parseInt(appointment.start_time.split(':')[1]);
     
-    // Calcular altura sem limitação para appointments multi-hora
+    // Calcular altura baseada na duração real em slots de hora
     const height = Math.max(
       LAYOUT_CONSTANTS.MIN_CARD_HEIGHT, 
-      durationMinutes * LAYOUT_CONSTANTS.PIXELS_PER_MINUTE
+      (durationMinutes / 60) * LAYOUT_CONSTANTS.SLOT_HEIGHT
     );
-    
-    // Debug height calculation for multi-hour appointments
-    if (durationMinutes >= 90) {
-      console.log(`Multi-hour appointment height calculation:`, {
-        patient: appointment.patient_name,
-        duration: `${appointment.start_time} - ${appointment.end_time}`,
-        durationMinutes,
-        pixelsPerMinute: LAYOUT_CONSTANTS.PIXELS_PER_MINUTE,
-        calculatedHeight: height,
-        expectedSlots: Math.ceil(durationMinutes / 60)
-      });
-    }
 
     // Calcular offset vertical dentro do slot inicial
-    const topOffset = (startMin / 60) * LAYOUT_CONSTANTS.USABLE_HEIGHT;
+    const topOffset = (startMin / 60) * LAYOUT_CONSTANTS.SLOT_HEIGHT;
+    
 
     return {
       widthPercentage,

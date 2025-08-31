@@ -14,6 +14,7 @@ import { FeatherX } from "@subframe/core";
 import { supabase, Patient, Professional } from "@/lib/supabase";
 import { SearchableSelect } from "./SearchableSelect";
 import { preparePatientNameForStorage } from "@/app/scheduling/utils/nameUtils";
+import { Appointment } from "@/app/scheduling/types";
 
 interface NewAppointmentModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ interface NewAppointmentModalProps {
   preSelectedDate?: Date;
   preSelectedTime?: string;
   initialType?: 'appointment' | 'blocked';
+  editingAppointment?: Appointment | null;
 }
 
 function NewAppointmentModal({ 
@@ -30,7 +32,8 @@ function NewAppointmentModal({
   onAppointmentCreated,
   preSelectedDate,
   preSelectedTime,
-  initialType = 'appointment'
+  initialType = 'appointment',
+  editingAppointment
 }: NewAppointmentModalProps) {
   const [appointmentType, setAppointmentType] = useState<'appointment' | 'blocked'>(initialType);
   const [formData, setFormData] = useState({
@@ -62,25 +65,52 @@ function NewAppointmentModal({
     if (open) {
       fetchPatientsAndProfessionals();
       
-      // Reset form data para limpar seleções anteriores
-      setFormData({
-        patient_id: "",
-        professional_id: "",
-        room: "",
-        procedure_type: "first_time",
-        duration_minutes: "30",
-        appointment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        start_time: preSelectedTime || "14:00",
-        end_time: preSelectedTime ? calculateEndTime(preSelectedTime, "30") : "15:00",
-        notes: "",
-        send_reminders: true,
-        notify_cancellation: false,
-        // Campos específicos para blocked time
-        reason: "",
-        repeat: false
-      });
+      // If editing an appointment, populate form with existing data
+      if (editingAppointment) {
+        // Calculate duration from start and end times
+        const startTime = editingAppointment.start_time;
+        const endTime = editingAppointment.end_time;
+        const startMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+        const endMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+        const duration = endMinutes - startMinutes;
+        
+        setFormData({
+          patient_id: editingAppointment.patient_id || "",
+          professional_id: editingAppointment.professional_id || "",
+          room: editingAppointment.room || "",
+          procedure_type: editingAppointment.appointment_type || "first_time",
+          duration_minutes: duration.toString(),
+          appointment_date: editingAppointment.appointment_date,
+          start_time: editingAppointment.start_time,
+          end_time: editingAppointment.end_time,
+          notes: editingAppointment.notes || "",
+          send_reminders: true,
+          notify_cancellation: false,
+          // Campos específicos para blocked time
+          reason: "",
+          repeat: false
+        });
+      } else {
+        // Reset form data para limpar seleções anteriores
+        setFormData({
+          patient_id: "",
+          professional_id: "",
+          room: "",
+          procedure_type: "first_time",
+          duration_minutes: "30",
+          appointment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          start_time: preSelectedTime || "14:00",
+          end_time: preSelectedTime ? calculateEndTime(preSelectedTime, "30") : "15:00",
+          notes: "",
+          send_reminders: true,
+          notify_cancellation: false,
+          // Campos específicos para blocked time
+          reason: "",
+          repeat: false
+        });
+      }
     }
-  }, [open, preSelectedDate, preSelectedTime]);
+  }, [open, preSelectedDate, preSelectedTime, editingAppointment]);
 
   const fetchPatientsAndProfessionals = async () => {
     try {
@@ -218,14 +248,28 @@ function NewAppointmentModal({
           notes: formData.notes
         };
 
-        console.log('Appointment data to insert:', appointmentData);
+        console.log('Appointment data:', appointmentData);
 
-        const { error } = await supabase
-          .from('appointments')
-          .insert([appointmentData]);
+        let error;
+        if (editingAppointment) {
+          // Update existing appointment
+          const updateResult = await supabase
+            .from('appointments')
+            .update(appointmentData)
+            .eq('id', editingAppointment.id);
+          error = updateResult.error;
+          console.log('Appointment updated successfully');
+        } else {
+          // Create new appointment
+          const insertResult = await supabase
+            .from('appointments')
+            .insert([appointmentData]);
+          error = insertResult.error;
+          console.log('Appointment created successfully');
+        }
 
         if (error) {
-          console.error('Error creating appointment:', error);
+          console.error(`Error ${editingAppointment ? 'updating' : 'creating'} appointment:`, error);
           console.error('Error details:', {
             message: error.message,
             details: error.details,
@@ -234,7 +278,6 @@ function NewAppointmentModal({
           });
           throw error;
         }
-        console.log('Appointment created successfully');
       }
 
       onAppointmentCreated?.();
@@ -292,31 +335,40 @@ function NewAppointmentModal({
   return (
     <DialogLayout open={open} onOpenChange={onOpenChange}>
       <div className="flex w-full flex-col items-start mobile:h-auto mobile:w-96">
-        <div className="flex w-full grow shrink-0 basis-0 items-center justify-between border-b border-solid border-neutral-border bg-default-background px-4 py-4">
-          <SegmentControl
-            className="h-10 w-auto flex-none"
-            variant="default"
-          >
-            <SegmentControl.Item 
-              active={appointmentType === 'appointment'}
-              onClick={() => setAppointmentType('appointment')}
-            >
-              Appointment
-            </SegmentControl.Item>
-            <SegmentControl.Item 
-              active={appointmentType === 'blocked'}
-              onClick={() => setAppointmentType('blocked')}
-            >
-              Blocked time
-            </SegmentControl.Item>
-          </SegmentControl>
-          <IconButton
-            disabled={false}
-            icon={<FeatherX />}
-            onClick={() => onOpenChange(false)}
-          />
+        <div className="flex w-full flex-col items-start border-b border-solid border-neutral-border bg-default-background px-4 py-4">
+          <div className="flex w-full items-center justify-between">
+            {editingAppointment ? (
+              <h2 className="text-heading-2 font-heading-2 text-default-font">
+                Edit Appointment
+              </h2>
+            ) : (
+              <SegmentControl
+                className="h-10 w-auto flex-none"
+                variant="default"
+              >
+                <SegmentControl.Item 
+                  active={appointmentType === 'appointment'}
+                  onClick={() => setAppointmentType('appointment')}
+                >
+                  Appointment
+                </SegmentControl.Item>
+                <SegmentControl.Item 
+                  active={appointmentType === 'blocked'}
+                  onClick={() => setAppointmentType('blocked')}
+                >
+                  Blocked time
+                </SegmentControl.Item>
+              </SegmentControl>
+            )}
+            <IconButton
+              disabled={false}
+              icon={<FeatherX />}
+              onClick={() => onOpenChange(false)}
+            />
+          </div>
         </div>
         <div className="flex w-full flex-col items-start gap-8 bg-default-background px-4 py-4 mobile:flex-col mobile:flex-nowrap mobile:gap-6">
+          
           <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
             
             {/* Campos para Appointment */}
@@ -662,10 +714,10 @@ function NewAppointmentModal({
             onClick={handleSubmit}
           >
             {loading 
-              ? "Creating..." 
+              ? (editingAppointment ? "Updating..." : "Creating...")
               : appointmentType === 'blocked' 
                 ? "Block time" 
-                : "Create appointment"
+                : (editingAppointment ? "Update appointment" : "Create appointment")
             }
           </Button>
         </div>

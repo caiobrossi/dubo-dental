@@ -30,8 +30,7 @@ export const useSchedulingData = (selectedDate: Date, viewMode: ViewMode) => {
           .from('appointments')
           .select('*')
           .gte('appointment_date', startDateStr)
-          .lte('appointment_date', endDateStr)
-          .in('status', ['scheduled', 'confirmed']), // Show both scheduled and confirmed appointments
+          .lte('appointment_date', endDateStr), // Show all appointment statuses
 
         supabase
           .from('blocked_times')

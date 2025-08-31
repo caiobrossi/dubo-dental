@@ -1,4 +1,18 @@
-import React, { memo, useMemo, useEffect, useRef, forwardRef } from 'react';
+import React, { memo, useMemo, useEffect, useRef, forwardRef, useState } from 'react';
+import { 
+  DndContext, 
+  closestCenter, 
+  KeyboardSensor, 
+  PointerSensor, 
+  useSensor, 
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay
+} from '@dnd-kit/core';
+import { 
+  sortableKeyboardCoordinates 
+} from '@dnd-kit/sortable';
 import { TimeSlot } from './TimeSlot';
 import { CurrentTimeIndicator } from './CurrentTimeIndicator';
 import { Appointment, BlockedTime, ViewMode } from '../types';
@@ -13,6 +27,7 @@ import {
   getBlockedTimesForSlot 
 } from '../utils/timeUtils';
 import { useCurrentTimePosition } from '../hooks/useCurrentTimePosition';
+import { AppointmentPopover } from '@/components/custom/AppointmentPopover';
 
 interface SchedulingGridProps {
   selectedDate: Date;
@@ -22,6 +37,9 @@ interface SchedulingGridProps {
   onSlotClick: (date: Date, hour: number) => void;
   onAppointmentClick: (appointment: Appointment) => void;
   onBlockedTimeClick: (blockedTime: BlockedTime) => void;
+  onAppointmentStatusUpdate?: () => void;
+  onEditAppointment?: (appointment: Appointment) => void;
+  onDeleteAppointment?: (appointment: Appointment) => void;
 }
 
 /**
@@ -34,9 +52,37 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
   blockedTimes,
   onSlotClick,
   onAppointmentClick,
-  onBlockedTimeClick
+  onBlockedTimeClick,
+  onAppointmentStatusUpdate,
+  onEditAppointment,
+  onDeleteAppointment
 }, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  
+  // Popover state
+  const [popoverData, setPopoverData] = useState<{
+    appointment: Appointment;
+    position: { x: number; y: number };
+  } | null>(null);
+  
+  // Drag and drop state
+  const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
+  
+  // Select state to prevent popover closing
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
+  
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   const displayDays = useMemo(() => 
     generateDisplayDays(selectedDate, viewMode), 
@@ -113,9 +159,170 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
     return () => clearTimeout(scrollTimeout);
   }, [hours, viewMode, selectedDate]);
 
+  // Handle appointment click to show popover
+  const handleAppointmentClick = (appointment: Appointment, event?: React.MouseEvent) => {
+    if (event) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      
+      // Check if appointment is on weekend (Saturday = 6, Sunday = 0)
+      // Weekend appointments show popover to the left, weekdays to the right
+      const appointmentDate = new Date(appointment.appointment_date);
+      const dayOfWeek = appointmentDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+      
+      // Position popover based on weekend status
+      const POPOVER_WIDTH = 320;
+      const GAP = 10;
+      
+      const position = isWeekend
+        ? {
+            x: Math.max(GAP, rect.left - POPOVER_WIDTH - GAP), // Ensure it doesn't go off-screen left
+            y: rect.top
+          }
+        : {
+            x: Math.min(window.innerWidth - POPOVER_WIDTH - GAP, rect.right + GAP), // Ensure it doesn't go off-screen right
+            y: rect.top
+          };
+      
+      setPopoverData({ appointment, position });
+    }
+    
+    // Call the original handler
+    onAppointmentClick(appointment);
+  };
+
+  // Close popover
+  const closePopover = () => {
+    setPopoverData(null);
+  };
+
+  // Handle click outside to close popover
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Don't close popover if Select is open
+      if (isSelectOpen) return;
+      
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        closePopover();
+      }
+    };
+
+    if (popoverData) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [popoverData, isSelectOpen]);
+
+  // Handle Select open/close state
+  const handleSelectOpenChange = (open: boolean) => {
+    setIsSelectOpen(open);
+  };
+
+  // Handle appointment status update
+  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+    try {
+      // Import supabase at the top if needed
+      const { supabase } = await import('@/lib/supabase');
+      
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: newStatus })
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error updating appointment status:', error);
+        // You could show a toast notification here
+        return;
+      }
+
+      if (onAppointmentStatusUpdate) {
+        onAppointmentStatusUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const appointmentId = active.id as string;
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    if (appointment) {
+      setActiveAppointment(appointment);
+      // Close popover if it's open
+      setPopoverData(null);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveAppointment(null);
+    
+    if (!over || !active) return;
+    
+    const appointmentId = active.id as string;
+    const dropZoneId = over.id as string;
+    
+    // Parse drop zone ID (format: "slot-YYYY-MM-DD-HH-MM")
+    const [, ...dateParts] = dropZoneId.split('-');
+    if (dateParts.length !== 5) return;
+    
+    const [year, month, day, hour, minutes] = dateParts;
+    const newDate = `${year}-${month}-${day}`;
+    const newTime = `${hour.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
+    
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    if (!appointment) return;
+    
+    // Calculate new end time based on appointment duration
+    const startTime = new Date(`2000-01-01T${appointment.start_time}`);
+    const endTime = new Date(`2000-01-01T${appointment.end_time}`);
+    const duration = endTime.getTime() - startTime.getTime();
+    
+    const newStartTime = new Date(`2000-01-01T${newTime}`);
+    const newEndTime = new Date(newStartTime.getTime() + duration);
+    
+    const newEndTimeString = newEndTime.toTimeString().slice(0, 8);
+    
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      
+      const { error } = await supabase
+        .from('appointments')
+        .update({ 
+          appointment_date: newDate,
+          start_time: newTime,
+          end_time: newEndTimeString
+        })
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error updating appointment:', error);
+        return;
+      }
+
+      // Refresh data
+      if (onAppointmentStatusUpdate) {
+        onAppointmentStatusUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+    }
+  };
+
   return (
-    <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
-      {/* Fixed header with day names */}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
+        {/* Fixed header with day names */}
       <div className="flex w-full overflow-x-auto">
         <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-t-rounded-xlarge border-t-2 border-l-2 border-r-2 border-b border-solid border-new-white-100 bg-default-background">
           {/* Empty corner cell for time column */}
@@ -161,7 +368,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
       
       {/* Scrollable content with time slots */}
       <div ref={ref || scrollContainerRef} className="flex w-full grow shrink-0 basis-0 items-start overflow-auto">
-        <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-b-rounded-xlarge border-b-2 border-l-2 border-r-2 border-solid border-new-white-100 bg-new-white-50">
+        <div className="flex min-w-[1200px] grow shrink-0 basis-0 items-start rounded-b-rounded-xlarge border-b-2 border-l-2 border-r-2 border-solid border-new-white-100 bg-new-white-50 relative">
           {/* Time column */}
           <div className="flex w-16 flex-none flex-col items-start">
             {/* Hour labels */}
@@ -185,7 +392,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
             return (
               <div 
                 key={index} 
-                className="flex w-full flex-1 flex-col items-start relative" 
+                className="flex w-full flex-1 flex-col items-start relative overflow-visible" 
                 style={{ 
                   minWidth: viewMode === 'day' ? '100%' : '160px' 
                 }}
@@ -215,7 +422,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
                       blockedTimes={slotBlockedTimes}
                       isLastColumn={isLastColumn}
                       onSlotClick={onSlotClick}
-                      onAppointmentClick={onAppointmentClick}
+                      onAppointmentClick={handleAppointmentClick}
                       onBlockedTimeClick={onBlockedTimeClick}
                     />
                   );
@@ -225,7 +432,36 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
           })}
         </div>
       </div>
-    </div>
+      
+      {/* Appointment Popover */}
+      {popoverData && (
+        <AppointmentPopover
+          appointment={popoverData.appointment}
+          position={popoverData.position}
+          onClose={closePopover}
+          popoverRef={popoverRef}
+          onStatusUpdate={handleStatusUpdate}
+          onEditAppointment={onEditAppointment}
+          onDeleteAppointment={onDeleteAppointment}
+          onSelectOpen={handleSelectOpenChange}
+        />
+      )}
+      </div>
+      
+      {/* Drag overlay for smooth dragging experience */}
+      <DragOverlay>
+        {activeAppointment && (
+          <div className="bg-blue-100 border-l-4 border-blue-500 px-2 py-1 text-xs shadow-lg rounded opacity-90">
+            <div className="font-semibold text-blue-800 truncate">
+              {activeAppointment.patient_name}
+            </div>
+            <div className="text-blue-600 text-xs">
+              {activeAppointment.start_time} - {activeAppointment.end_time}
+            </div>
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 });
 
