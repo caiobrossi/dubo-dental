@@ -14,7 +14,8 @@ import * as SubframeCore from "@subframe/core";
 import { IconButton } from "@/ui/components/IconButton";
 import { Select } from "@/ui/components/Select";
 import { DropdownMenu } from "@/ui/components/DropdownMenu";
-import { Appointment, AppointmentStatus } from "@/app/scheduling/hooks/useScheduler";
+import { Appointment } from "@/app/scheduling/hooks/useScheduler";
+import { AppointmentStatus } from "@/app/scheduling/types";
 import { supabase } from "@/lib/supabase";
 import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
 
@@ -140,8 +141,6 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
   
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appointment.status || 'scheduled');
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -205,28 +204,6 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
     }
   };
 
-  // Handle menu toggle
-  const toggleMenu = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(!showMenu);
-  };
-
-  // Handle click outside menu
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showMenu]);
 
   // Prevent popover from closing when Select is being used
   const handleSelectOpenChange = (open: boolean) => {
@@ -237,13 +214,11 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
 
   // Handle actions
   const handleEditClick = () => {
-    setShowMenu(false);
     onEditAppointment?.(appointment);
     onClose();
   };
 
   const handleDeleteClick = () => {
-    setShowMenu(false);
     onDeleteAppointment?.(appointment);
     onClose();
   };
@@ -295,39 +270,39 @@ export const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
               {appointment.appointment_type || 'Consulta'}
             </span>
           </div>
-          <div className="relative" ref={menuRef}>
-            <IconButton
-              disabled={false}
-              variant="neutral-secondary"
-              icon={<FeatherMoreVertical />}
-              loading={false}
-              onClick={toggleMenu}
-            />
-            
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-1 z-50 flex min-w-[192px] flex-col items-start rounded-lg border border-solid border-new-gray-10 bg-new-white-70 px-2 py-2 shadow-lg backdrop-blur">
-                <div 
-                  onClick={handleEditClick}
-                  className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-3 hover:bg-gray-100 transition-colors"
-                >
-                  <FeatherEdit3 className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">
+          <SubframeCore.DropdownMenu.Root>
+            <SubframeCore.DropdownMenu.Trigger asChild={true}>
+              <IconButton
+                disabled={false}
+                variant="neutral-secondary"
+                icon={<FeatherMoreVertical />}
+                loading={false}
+              />
+            </SubframeCore.DropdownMenu.Trigger>
+            <SubframeCore.DropdownMenu.Portal>
+              <SubframeCore.DropdownMenu.Content
+                side="bottom"
+                align="end"
+                sideOffset={8}
+                asChild={true}
+              >
+                <DropdownMenu>
+                  <DropdownMenu.DropdownItem 
+                    icon={<FeatherEdit3 />}
+                    onClick={handleEditClick}
+                  >
                     Edit Appointment
-                  </span>
-                </div>
-                
-                <div 
-                  onClick={handleDeleteClick}
-                  className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-3 hover:bg-red-50 transition-colors"
-                >
-                  <FeatherTrash2 className="w-4 h-4 text-red-600" />
-                  <span className="text-sm text-red-600">
+                  </DropdownMenu.DropdownItem>
+                  <DropdownMenu.DropdownItem 
+                    icon={<FeatherTrash2 />}
+                    onClick={handleDeleteClick}
+                  >
                     Delete Appointment
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+                  </DropdownMenu.DropdownItem>
+                </DropdownMenu>
+              </SubframeCore.DropdownMenu.Content>
+            </SubframeCore.DropdownMenu.Portal>
+          </SubframeCore.DropdownMenu.Root>
           
         </div>
         

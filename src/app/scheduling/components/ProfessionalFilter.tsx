@@ -58,7 +58,7 @@ export const ProfessionalFilter: React.FC<ProfessionalFilterProps> = ({
       <SubframeCore.DropdownMenu.Trigger asChild={true}>
         <Button
           variant="neutral-secondary"
-          size="large"
+          size="medium"
           iconRight={<FeatherChevronDown />}
           className="gap-1"
         >

@@ -17,7 +17,6 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/ui/components/Button';
 import { supabase } from '@/lib/supabase';
-import 'react-day-picker/dist/style.css';
 
 interface EnhancedCalendarProps {
   selectedDate: Date;
@@ -171,7 +170,7 @@ export const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   };
 
   return (
-    <div className="enhanced-calendar-container flex flex-col gap-4 p-4 bg-white/40 backdrop-blur-lg rounded-lg shadow-xl max-w-[800px] relative border border-neutral-border" style={{ zIndex: 999999, position: 'relative' }}>
+    <div className="enhanced-calendar-container flex flex-col gap-4 p-4 bg-white/40 backdrop-blur-lg rounded-lg shadow-xl w-full relative border border-neutral-border" style={{ zIndex: 999999, position: 'relative' }}>
       {/* Navigation Header */}
       <div className="flex items-center justify-between mb-2">
         <button
@@ -181,11 +180,11 @@ export const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
           <ChevronLeft className="w-5 h-5" />
         </button>
         
-        <div className="flex gap-8">
-          <h3 className="text-heading-4 font-heading-4 text-default-font">
+        <div className="flex gap-16 justify-center flex-1">
+          <h3 className="text-heading-4 font-heading-4 text-default-font text-center flex-1">
             {format(currentMonth, 'MMMM yyyy')}
           </h3>
-          <h3 className="text-heading-4 font-heading-4 text-default-font">
+          <h3 className="text-heading-4 font-heading-4 text-default-font text-center flex-1">
             {format(addMonths(currentMonth, 1), 'MMMM yyyy')}
           </h3>
         </div>
@@ -211,11 +210,49 @@ export const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
             --rdp-accent-color: #7c3aed;
             --rdp-background-color: #ede9fe;
             margin: 0;
+            font-size: 14px;
           }
           
           .rdp-custom .rdp-months {
             display: flex;
-            gap: 2rem;
+            gap: 3rem;
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .rdp-custom .rdp-month {
+            flex: 1;
+            min-width: 300px;
+          }
+          
+          .rdp-custom .rdp-table {
+            width: 100%;
+            margin: 0.5rem 0;
+          }
+          
+          .rdp-custom .rdp-head_cell {
+            padding: 0.25rem;
+            font-weight: 600;
+            font-size: 12px;
+            height: 32px;
+          }
+          
+          .rdp-custom .rdp-cell {
+            padding: 1px;
+            width: 40px;
+            height: 40px;
+          }
+          
+          .rdp-custom .rdp-button {
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
           }
           
           .rdp-custom .rdp-caption {

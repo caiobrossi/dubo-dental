@@ -2,7 +2,7 @@ import React, { memo, useState, useEffect, useRef } from 'react';
 import { Button } from "@/ui/components/Button";
 import { TextField } from "@/ui/components/TextField";
 import { IconButton } from "@/ui/components/IconButton";
-import { FeatherSearch, FeatherPlus, FeatherX, FeatherCalendar, FeatherSettings } from "@subframe/core";
+import { FeatherSearch, FeatherPlus, FeatherX } from "@subframe/core";
 import { AppointmentModalType, Appointment } from '../types';
 import { useSchedulingSearch } from '../hooks/useSchedulingSearch';
 import { SearchDropdown } from './SearchDropdown';
@@ -13,7 +13,6 @@ interface SchedulingHeaderProps {
   onSearchChange: (value: string) => void;
   onAddClick: (type: AppointmentModalType) => void;
   onAppointmentSelect: (appointment: Appointment) => void;
-  onCalendarToggle: () => void;
 }
 
 /**
@@ -24,8 +23,7 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
   appointments,
   onSearchChange,
   onAddClick,
-  onAppointmentSelect,
-  onCalendarToggle
+  onAppointmentSelect
 }) => {
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const { searchAppointments, isOpen, openDropdown, closeDropdown } = useSchedulingSearch(appointments);
@@ -65,14 +63,14 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
   };
 
   return (
-    <div className="flex w-full flex-none items-center justify-between px-8 py-2 bg-default-background">
-      <div className="flex flex-col items-start gap-2">
+    <div className="flex w-full flex-none items-center px-8 py-2 bg-default-background">
+      <div className="flex flex-col items-start gap-2 flex-[0.9]">
         <span className="text-heading-2 font-heading-2 text-default-font">
           Scheduling
         </span>
       </div>
       
-      <div ref={searchContainerRef} className="relative h-10 max-w-[768px] grow shrink-0 basis-0">
+      <div ref={searchContainerRef} className="relative h-12 max-w-[1080px] flex-[1.2] px-6">
         <div className="relative h-full w-full">
           <TextField
             className="h-full w-full [&>div]:rounded-full [&>div]:bg-neutral-100 [&>div]:hover:bg-neutral-200 [&>div]:transition-colors [&>div]:border-0 [&>div]:shadow-none [&>div:focus-within]:!bg-white [&>div:focus-within]:ring-0 [&>div:focus-within]:outline-none"
@@ -85,7 +83,7 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
               value={searchTerm}
               onChange={handleSearchChange}
               onFocus={handleSearchFocus}
-              className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0 pr-10"
+              className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0 pr-10 text-base py-3"
             />
           </TextField>
           
@@ -112,27 +110,7 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
         />
       </div>
       
-      <div className="flex items-center gap-2">
-        <IconButton
-          size="large"
-          variant="neutral-tertiary"
-          icon={<FeatherSettings />}
-          onClick={() => {
-            // TODO: Implement settings functionality
-          }}
-          disabled={false}
-          loading={false}
-        />
-        
-        <IconButton
-          size="large"
-          variant="neutral-tertiary"
-          icon={<FeatherCalendar />}
-          onClick={onCalendarToggle}
-          disabled={false}
-          loading={false}
-        />
-        
+      <div className="flex items-center justify-end gap-2 flex-[0.9]">
         <Button
           disabled={false}
           variant="neutral-secondary"

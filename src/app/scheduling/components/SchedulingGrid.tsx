@@ -64,6 +64,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
   const [popoverData, setPopoverData] = useState<{
     appointment: Appointment;
     position: { x: number; y: number };
+    originalElement?: HTMLElement;
   } | null>(null);
   
   // Drag and drop state
@@ -216,32 +217,45 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
     return () => clearTimeout(scrollTimeout);
   }, [hours, viewMode, selectedDate]);
 
+  // Function to calculate popover position for an appointment
+  const calculatePopoverPosition = (appointment: Appointment, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    
+    // Check if appointment is in the last two columns based on current view mode
+    const appointmentDate = new Date(appointment.appointment_date);
+    
+    // Find the index of this appointment's date in the current displayDays
+    const appointmentIndex = displayDays.findIndex(day => {
+      const dayStr = day.toDateString();
+      const appointmentStr = appointmentDate.toDateString();
+      return dayStr === appointmentStr;
+    });
+    
+    // Check if this appointment is in the last two columns
+    const totalColumns = displayDays.length;
+    const isLastTwoColumns = appointmentIndex >= totalColumns - 2;
+    
+    // Position popover based on column position
+    const POPOVER_WIDTH = 320;
+    const GAP = 10;
+    
+    return isLastTwoColumns
+      ? {
+          x: Math.max(GAP, rect.left - POPOVER_WIDTH - GAP), // Show to the left for last two columns
+          y: rect.top
+        }
+      : {
+          x: Math.min(window.innerWidth - POPOVER_WIDTH - GAP, rect.right + GAP), // Show to the right for other columns
+          y: rect.top
+        };
+  };
+
   // Handle appointment click to show popover
   const handleAppointmentClick = (appointment: Appointment, event?: React.MouseEvent) => {
     if (event) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      
-      // Check if appointment is on weekend (Saturday = 6, Sunday = 0)
-      // Weekend appointments show popover to the left, weekdays to the right
-      const appointmentDate = new Date(appointment.appointment_date);
-      const dayOfWeek = appointmentDate.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
-      
-      // Position popover based on weekend status
-      const POPOVER_WIDTH = 320;
-      const GAP = 10;
-      
-      const position = isWeekend
-        ? {
-            x: Math.max(GAP, rect.left - POPOVER_WIDTH - GAP), // Ensure it doesn't go off-screen left
-            y: rect.top
-          }
-        : {
-            x: Math.min(window.innerWidth - POPOVER_WIDTH - GAP, rect.right + GAP), // Ensure it doesn't go off-screen right
-            y: rect.top
-          };
-      
-      setPopoverData({ appointment, position });
+      const element = event.currentTarget as HTMLElement;
+      const position = calculatePopoverPosition(appointment, element);
+      setPopoverData({ appointment, position, originalElement: element });
     }
     
     // Call the original handler
@@ -272,6 +286,45 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [popoverData, isSelectOpen]);
+
+  // Handle window resize to reposition popover
+  useEffect(() => {
+    let animationFrameId: number;
+    let isThrottled = false;
+    
+    const handleResize = () => {
+      if (isThrottled) return;
+      
+      isThrottled = true;
+      animationFrameId = requestAnimationFrame(() => {
+        if (popoverData && popoverData.originalElement) {
+          // Check if the original element still exists in the DOM
+          if (document.contains(popoverData.originalElement)) {
+            const newPosition = calculatePopoverPosition(popoverData.appointment, popoverData.originalElement);
+            setPopoverData({
+              ...popoverData,
+              position: newPosition
+            });
+          } else {
+            // Element no longer exists, close popover
+            closePopover();
+          }
+        }
+        isThrottled = false;
+      });
+    };
+
+    if (popoverData) {
+      window.addEventListener('resize', handleResize, { passive: true });
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [popoverData, displayDays]); // Include displayDays to recalculate when view changes
 
   // Handle Select open/close state
   const handleSelectOpenChange = (open: boolean) => {

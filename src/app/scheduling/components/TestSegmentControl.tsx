@@ -32,7 +32,7 @@ export const TestSegmentControl: React.FC<TestSegmentControlProps> = ({
       <SubframeCore.DropdownMenu.Trigger asChild={true}>
         <Button
           variant="neutral-secondary"
-          size="large"
+          size="medium"
           iconRight={<FeatherChevronDown />}
           className="gap-1"
         >

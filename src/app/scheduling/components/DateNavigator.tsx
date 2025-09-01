@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { IconButton } from "@/ui/components/IconButton";
+import { Button } from "@/ui/components/Button";
 import { SegmentControl } from "@/ui/components/SegmentControl";
 import * as SubframeCore from "@subframe/core";
 import {
@@ -24,6 +25,7 @@ interface DateNavigatorProps {
   onDateChange: (date: Date) => void;
   onViewModeChange: (mode: ViewMode) => void;
   onProfessionalChange: (professionalId: string) => void;
+  onCalendarPanelToggle: () => void;
 }
 
 /**
@@ -36,7 +38,8 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
   selectedProfessional,
   onDateChange,
   onViewModeChange,
-  onProfessionalChange
+  onProfessionalChange,
+  onCalendarPanelToggle
 }) => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const period = formatPeriod(selectedDate, viewMode);
@@ -54,105 +57,102 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
   };
 
   return (
-    <div className="flex w-full flex-wrap items-center justify-between py-2 px-8">
-      {/* View mode and professional filters */}
-      <div className="flex items-center gap-2">
-        <TestSegmentControl 
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-        />
+    <div className="flex w-full items-center py-2 px-8">
+      {/* Left: Professional Filter */}
+      <div className="flex items-center flex-[0.9]">
         <ProfessionalFilter
           selectedProfessional={selectedProfessional}
           onProfessionalChange={onProfessionalChange}
         />
       </div>
 
-      {/* Date display with calendar popup */}
-      <SubframeCore.Popover.Root open={calendarOpen} onOpenChange={setCalendarOpen} modal={false}>
-        <SubframeCore.Popover.Trigger asChild={true}>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <span className="font-['Urbanist'] text-[24px] font-[400] leading-[28px] text-default-font">
-              {period.dates}
-            </span>
-            <span className="text-heading-2 font-heading-2 text-default-font">
-              {period.monthYear}
-            </span>
-            <IconButton
-              disabled={false}
-              variant="neutral-tertiary"
-              size="medium"
-              icon={<FeatherChevronDown />}
-              loading={false}
-              onClick={() => {}}
-            />
-          </div>
-        </SubframeCore.Popover.Trigger>
-        
-        <SubframeCore.Popover.Portal>
-          <SubframeCore.Popover.Content
-            side="bottom"
-            align="center"
-            sideOffset={4}
-            asChild={true}
-            style={{ zIndex: 999999 }}
-            onOpenAutoFocus={(e) => e.preventDefault()}
-            onInteractOutside={(e) => {
-              // Allow interactions with the calendar content
-              const target = e.target as HTMLElement;
-              if (target.closest('.enhanced-calendar-container')) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <EnhancedCalendar
-              selectedDate={selectedDate}
-              onDateSelect={handleCalendarSelect}
-              onClose={() => setCalendarOpen(false)}
-              professionalId={selectedProfessional}
-            />
-          </SubframeCore.Popover.Content>
-        </SubframeCore.Popover.Portal>
-      </SubframeCore.Popover.Root>
-
-      {/* Navigation controls (prev/today/next) and action buttons */}
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        <SegmentControl className="h-10 w-auto flex-none" variant="default">
-          <SegmentControl.Item 
-            icon={<FeatherChevronLeft />} 
-            onClick={() => handleNavigation('prev')}
-          />
-          <SegmentControl.Item 
-            active={true}
-            onClick={() => handleNavigation('today')}
-          >
-            Today
-          </SegmentControl.Item>
-          <SegmentControl.Item 
-            icon={<FeatherChevronRight />}
-            onClick={() => handleNavigation('next')}
-          />
-        </SegmentControl>
-        
+      {/* Center: Date Navigation */}
+      <div className="flex items-center justify-center gap-2 flex-[1.2] px-6">
+        {/* Previous week button */}
         <IconButton
           disabled={false}
           variant="neutral-secondary"
-          size="large"
-          icon={<FeatherSettings />}
+          size="medium"
+          icon={<FeatherChevronLeft />}
           loading={false}
-          onClick={() => {
-            // TODO: Implement settings functionality
-          }}
+          onClick={() => handleNavigation('prev')}
         />
         
+        {/* Date display with calendar popup */}
+        <SubframeCore.Popover.Root open={calendarOpen} onOpenChange={setCalendarOpen} modal={false}>
+          <SubframeCore.Popover.Trigger asChild={true}>
+            <div className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-md hover:bg-neutral-50 transition-colors">
+              <span className="font-['Urbanist'] text-[20px] font-[400] leading-[24px] text-default-font">
+                {period.dates}
+              </span>
+              <span className="font-['Urbanist'] text-[20px] font-bold leading-[24px] text-default-font">
+                {period.monthYear}
+              </span>
+              <FeatherChevronDown className="w-4 h-4 text-subtext-color" />
+            </div>
+          </SubframeCore.Popover.Trigger>
+          
+          <SubframeCore.Popover.Portal>
+            <SubframeCore.Popover.Content
+              side="bottom"
+              align="center"
+              sideOffset={4}
+              asChild={true}
+              style={{ zIndex: 999999, minWidth: '800px', maxWidth: '900px' }}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onInteractOutside={(e) => {
+                // Allow interactions with the calendar content
+                const target = e.target as HTMLElement;
+                if (target.closest('.enhanced-calendar-container')) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <EnhancedCalendar
+                selectedDate={selectedDate}
+                onDateSelect={handleCalendarSelect}
+                onClose={() => setCalendarOpen(false)}
+                professionalId={selectedProfessional}
+              />
+            </SubframeCore.Popover.Content>
+          </SubframeCore.Popover.Portal>
+        </SubframeCore.Popover.Root>
+
+        {/* Next week button */}
         <IconButton
           disabled={false}
           variant="neutral-secondary"
-          size="large"
+          size="medium"
+          icon={<FeatherChevronRight />}
+          loading={false}
+          onClick={() => handleNavigation('next')}
+        />
+
+        {/* Today button */}
+        <Button
+          variant="neutral-secondary"
+          size="medium"
+          onClick={() => onDateChange(new Date())}
+          disabled={false}
+          loading={false}
+        >
+          Today
+        </Button>
+      </div>
+
+      {/* Right: Week Filter and Calendar Button */}
+      <div className="flex items-center justify-end gap-2 flex-[0.9]">
+        <TestSegmentControl 
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+        />
+        <IconButton
+          disabled={false}
+          variant="neutral-secondary"
+          size="medium"
           icon={<FeatherCalendar />}
           loading={false}
-          onClick={() => {
-            // TODO: Implement calendar functionality
-          }}
+          onClick={onCalendarPanelToggle}
         />
       </div>
     </div>
