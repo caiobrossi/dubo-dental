@@ -236,7 +236,7 @@ function PatientGroups() {
         </div>
         
         {/* Filters Section */}
-        <div className="flex w-full flex-wrap items-center justify-between px-4 pb-4">
+        <div className="flex w-full flex-wrap items-center justify-between px-8 pb-4">
             <div className="flex items-center gap-2">
               {/* Sort by dropdown */}
               <SubframeCore.DropdownMenu.Root>
@@ -308,7 +308,7 @@ function PatientGroups() {
             </TextField>
         </div>
         
-        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-4 py-4 overflow-auto">
+        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-2 rounded-lg bg-default-background px-8 py-4 overflow-auto">
           <div className="w-full items-start gap-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading ? (
               // Loading state

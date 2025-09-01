@@ -1,38 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase, LabOrder, Professional } from "@/lib/supabase";
 import NewLabOrderModal from "@/components/custom/NewLabOrderModal";
 import OrderDetailsDrawer from "@/components/custom/OrderDetailsDrawer";
 import SupplierDetailsDrawer from "@/components/custom/SupplierDetailsDrawer";
 import { Button } from "@/ui/components/Button";
-import { Chips } from "@/ui/components/Chips";
-import { DropdownMenu } from "@/ui/components/DropdownMenu";
-import { IconButton } from "@/ui/components/IconButton";
-import { LinkButton } from "@/ui/components/LinkButton";
-import { Table } from "@/ui/components/Table";
 import { TextField } from "@/ui/components/TextField";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
-import { FeatherChevronDown, FeatherChevronUp, FeatherArrowUp, FeatherArrowDown } from "@subframe/core";
-import { FeatherDownload } from "@subframe/core";
-import { FeatherEdit2 } from "@subframe/core";
-import { FeatherMoreHorizontal } from "@subframe/core";
-import { FeatherPlus } from "@subframe/core";
-import { FeatherPrinter } from "@subframe/core";
-import { FeatherSearch } from "@subframe/core";
-import { FeatherStar } from "@subframe/core";
-import { FeatherTrash } from "@subframe/core";
-import { FeatherX } from "@subframe/core";
+import { FeatherChevronDown, FeatherPlus, FeatherSearch, FeatherX } from "@subframe/core";
+import { IconButton } from "@/ui/components/IconButton";
 import * as SubframeCore from "@subframe/core";
+import { DropdownMenu } from "@/ui/components/DropdownMenu";
+
+// New TanStack Table imports
+import { InfiniteScrollTable } from "./components/InfiniteScrollTable";
+import { useLabOrdersTableState } from "./hooks/useLabOrdersTableState";
 
 function LabsOrder() {
-  const [labOrders, setLabOrders] = useState<LabOrder[]>([]);
-  const [filteredLabOrders, setFilteredLabOrders] = useState<LabOrder[]>([]);
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<{ column: string; direction: 'asc' | 'desc' }>({ column: 'created_at', direction: 'desc' });
+  // Modal states
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
@@ -40,46 +26,19 @@ function LabsOrder() {
   const [showSupplierDetails, setShowSupplierDetails] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | undefined>(undefined);
 
-  // Função para buscar dados do Supabase
-  const fetchLabOrders = async () => {
-    try {
-      setLoading(true);
-      
-      // Atualizar status baseado na data de vencimento
-      await supabase.rpc('update_lab_order_status');
-      
-      // Buscar todos os lab orders incluindo supplier_id
-      const { data, error } = await supabase
-        .from('lab_orders')
-        .select('*')
-        .order('created_at', { ascending: false });
+  // Data states
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
 
-      if (error) {
-        console.error('Erro ao buscar lab orders:', error);
-      } else {
-        console.log('Lab orders carregados:', data);
-        setLabOrders(data || []);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar lab orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Table state from custom hook
+  const {
+    globalFilter,
+    onGlobalFilterChange,
+    resetFilters,
+  } = useLabOrdersTableState();
 
-  // Carregar dados quando o componente montar
-  useEffect(() => {
-    fetchLabOrders();
-    loadProfessionals();
-    checkSuppliers(); // Adicionar verificação de suppliers
-  }, []);
-
-  // Aplicar filtros quando dados ou filtros mudarem
-  useEffect(() => {
-    filterLabOrders();
-  }, [labOrders, searchTerm, selectedProfessional, sortBy]);
-
-  const loadProfessionals = async () => {
+  // Load data functions
+  const loadProfessionals = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('professionals')
@@ -89,606 +48,189 @@ function LabsOrder() {
       if (error) throw error;
       setProfessionals(data || []);
     } catch (error) {
-      console.error('Erro ao carregar profissionais:', error);
+      console.error('Error loading professionals:', error);
     }
-  };
+  }, []);
 
-  const checkSuppliers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('suppliers')
-        .select('*')
-        .order('name', { ascending: true });
+  // Effects
+  useEffect(() => {
+    loadProfessionals();
+  }, [loadProfessionals]);
 
-      if (error) {
-        console.error('Erro ao carregar suppliers - tabela pode não existir:', error);
-      } else {
-        console.log('Suppliers disponíveis:', data);
-      }
-    } catch (error) {
-      console.error('Erro ao verificar suppliers:', error);
-    }
-  };
-
-  const filterLabOrders = () => {
-    let filtered = labOrders;
-    
-    // Filter by professional
-    if (selectedProfessional !== 'all') {
-      filtered = filtered.filter(order => order.professional_id === selectedProfessional);
-    }
-    
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(order => {
-        // Filter by patient name
-        if (order.patient_name?.toLowerCase().includes(term)) return true;
-        
-        // Filter by order name
-        if (order.order_name?.toLowerCase().includes(term)) return true;
-        
-        // Filter by professional name
-        if (order.professional_name?.toLowerCase().includes(term)) return true;
-        
-        // Filter by lab name
-        if (order.lab_name?.toLowerCase().includes(term)) return true;
-        
-        // Filter by services
-        if (order.services?.toLowerCase().includes(term)) return true;
-        
-        return false;
-      });
-    }
-    
-    // Sort orders
-    const sorted = [...filtered].sort((a, b) => {
-      const { column, direction } = sortBy;
-      let comparison = 0;
-      
-      switch (column) {
-        case 'order_name':
-          comparison = (a.order_name || '').localeCompare(b.order_name || '');
-          break;
-        case 'patient_name':
-          comparison = (a.patient_name || '').localeCompare(b.patient_name || '');
-          break;
-        case 'professional_name':
-          comparison = (a.professional_name || '').localeCompare(b.professional_name || '');
-          break;
-        case 'lab_name':
-          comparison = (a.lab_name || '').localeCompare(b.lab_name || '');
-          break;
-        case 'services':
-          comparison = (a.services || '').localeCompare(b.services || '');
-          break;
-        case 'due_date':
-          comparison = new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime();
-          break;
-        case 'total_price':
-          comparison = (a.total_price || 0) - (b.total_price || 0);
-          break;
-        case 'status':
-          comparison = (a.status || '').localeCompare(b.status || '');
-          break;
-        case 'created_at':
-          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-          break;
-        default:
-          comparison = 0;
-      }
-      
-      return direction === 'asc' ? comparison : -comparison;
-    });
-    
-    setFilteredLabOrders(sorted);
-  };
-
-  const handleOrderClick = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setShowOrderDetails(true);
-  };
-
-  const handleEditOrder = (order: LabOrder) => {
+  // Lab order actions
+  const handleEditOrder = useCallback((order: LabOrder) => {
     setEditingOrder(order);
     setShowNewOrderModal(true);
-  };
+  }, []);
 
-  const handleLabNameClick = async (labName: string, supplierId?: string) => {
-    console.log('handleLabNameClick chamado:', { labName, supplierId });
-    
-    // TESTE: Forçar abertura do drawer com um ID fake para testar o componente
-    const testSupplierId = "123e4567-e89b-12d3-a456-426614174000"; // UUID fake para teste
-    console.log('TESTE: Forçando abertura do drawer com ID fake');
-    setSelectedSupplierId(testSupplierId);
-    setShowSupplierDetails(true);
-    return; // Sair early para teste
-    
-    if (supplierId) {
-      // Se já temos o supplier_id, usar diretamente
-      console.log('Usando supplier_id diretamente:', supplierId);
-      setSelectedSupplierId(supplierId);
-      setShowSupplierDetails(true);
-    } else {
-      // Se não temos supplier_id, buscar supplier pelo nome do lab
-      console.log('Buscando supplier pelo nome:', labName);
-      try {
-        const { data, error } = await supabase
-          .from('suppliers')
-          .select('id')
-          .eq('name', labName)
-          .single();
+  const handleDeleteOrder = useCallback(async (order: LabOrder) => {
+    if (!window.confirm(`Are you sure you want to delete ${order.order_name}?`)) return;
 
-        console.log('Resultado da busca:', { data, error });
+    try {
+      const { error } = await supabase
+        .from('lab_orders')
+        .delete()
+        .eq('id', order.id);
 
-        if (data && !error) {
-          console.log('Supplier encontrado, abrindo drawer:', data.id);
-          setSelectedSupplierId(data.id);
-          setShowSupplierDetails(true);
-        } else {
-          console.log('Supplier não encontrado para:', labName);
-          // Mostrar alerta para o usuário
-          alert(`Supplier não encontrado para o lab: ${labName}`);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar supplier:', error);
-      }
+      if (error) throw error;
+      
+      // Refresh data is handled by the infinite scroll hook
+      console.log('Lab order deleted successfully');
+    } catch (error) {
+      console.error('Error deleting lab order:', error);
     }
-  };
+  }, []);
 
-  const handleModalClose = (open: boolean) => {
+  const handleViewDetails = useCallback((orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowOrderDetails(true);
+  }, []);
+
+  const handleOrderCreated = useCallback(() => {
+    setEditingOrder(null);
+    // Force refresh by reloading the page or triggering a re-fetch
+    window.location.reload();
+  }, []);
+
+  const handleNewOrderModalClose = useCallback((open: boolean) => {
     setShowNewOrderModal(open);
     if (!open) {
-      setEditingOrder(null); // Reset editing state when modal closes
+      setEditingOrder(null);
     }
-  };
+  }, []);
 
-  const handleSort = (column: string) => {
-    setSortBy(prev => ({
-      column,
-      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  };
+  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    onGlobalFilterChange(event.target.value);
+  }, [onGlobalFilterChange]);
 
-  // Função para mapear status para variante do chip
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'order_created': return 'brand';
-      case 'order_confirmed': return 'success';
-      case 'in_progress': return 'warning';
-      case 'completed': return 'success';
-      case 'overdue': return 'error';
-      default: return 'neutral';
-    }
-  };
+  const handleClearSearch = useCallback(() => {
+    onGlobalFilterChange('');
+  }, [onGlobalFilterChange]);
 
-  // Função para mapear status para texto exibido
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'order_created': return 'Order created';
-      case 'order_confirmed': return 'Order confirmed';
-      case 'in_progress': return 'In progress';
-      case 'completed': return 'Completed';
-      case 'overdue': return 'Overdue';
-      default: return status;
-    }
-  };
+  // Memoized professional display name
+  const professionalDisplayName = useMemo(() => {
+    if (selectedProfessional === 'all') return 'All professionals';
+    return professionals.find(p => p.id === selectedProfessional)?.name || 'All professionals';
+  }, [selectedProfessional, professionals]);
 
   return (
     <DefaultPageLayout>
       <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3">
-        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2">
+        {/* Header */}
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 mobile:container mobile:max-w-none">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
-              Labs Order
+              Lab Orders
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          
+          <Button
+            disabled={false}
+            variant="brand-primary"
+            size="large"
+            icon={<FeatherPlus />}
+            iconRight={null}
+            loading={false}
+            onClick={() => setShowNewOrderModal(true)}
+          >
+            Create new order
+          </Button>
+        </div>
+        
+        {/* Filters */}
+        <div className="flex w-full flex-wrap items-center justify-between px-8 pb-4">
+          <div className="flex items-center gap-4">
             <SubframeCore.DropdownMenu.Root>
               <SubframeCore.DropdownMenu.Trigger asChild={true}>
                 <Button
-                  disabled={false}
                   variant="neutral-secondary"
                   size="large"
-                  iconRight={null}
-                  loading={false}
-                  onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
+                  iconRight={<FeatherChevronDown />}
                 >
-                  Actions
+                  {professionalDisplayName}
                 </Button>
               </SubframeCore.DropdownMenu.Trigger>
               <SubframeCore.DropdownMenu.Portal>
                 <SubframeCore.DropdownMenu.Content
                   side="bottom"
                   align="start"
-                  sideOffset={6}
+                  sideOffset={4}
                   asChild={true}
                 >
                   <DropdownMenu>
-                    <DropdownMenu.DropdownItem icon={<FeatherPrinter />}>
-                      Print
+                    <DropdownMenu.DropdownItem
+                      onClick={() => setSelectedProfessional('all')}
+                    >
+                      All professionals
                     </DropdownMenu.DropdownItem>
-                    <DropdownMenu.DropdownItem icon={<FeatherDownload />}>
-                      Download as...
-                    </DropdownMenu.DropdownItem>
-                    <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
-                      Create product category
-                    </DropdownMenu.DropdownItem>
+                    {professionals.map((professional) => (
+                      <DropdownMenu.DropdownItem
+                        key={professional.id}
+                        onClick={() => setSelectedProfessional(professional.id)}
+                      >
+                        {professional.name}
+                      </DropdownMenu.DropdownItem>
+                    ))}
                   </DropdownMenu>
                 </SubframeCore.DropdownMenu.Content>
               </SubframeCore.DropdownMenu.Portal>
             </SubframeCore.DropdownMenu.Root>
-            <Button
-              disabled={false}
-              variant="brand-primary"
-              size="large"
-              icon={<FeatherPlus />}
-              iconRight={null}
-              loading={false}
-              onClick={() => setShowNewOrderModal(true)}
-            >
-              New Lab Order
-            </Button>
           </div>
-        </div>
-        <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-6 rounded-lg bg-default-background px-4 py-4 overflow-auto">
-          <div className="flex w-full flex-wrap items-center justify-between pb-4">
-            <div className="flex items-center gap-2">
-              <SubframeCore.DropdownMenu.Root>
-                <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                  <Button
-                    variant="neutral-secondary"
-                    size="large"
-                    iconRight={<FeatherChevronDown />}
-                    onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
-                  >
-                    {selectedProfessional === 'all' 
-                      ? 'All professionals' 
-                      : professionals.find(p => p.id === selectedProfessional)?.name || 'All professionals'
-                    }
-                  </Button>
-                </SubframeCore.DropdownMenu.Trigger>
-                <SubframeCore.DropdownMenu.Portal>
-                  <SubframeCore.DropdownMenu.Content
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    asChild={true}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSelectedProfessional('all')}
-                      >
-                        All professionals
-                      </DropdownMenu.DropdownItem>
-                      {professionals.length === 0 ? (
-                        <DropdownMenu.DropdownItem>
-                          Carregando profissionais...
-                        </DropdownMenu.DropdownItem>
-                      ) : (
-                        professionals.map((professional) => (
-                          <DropdownMenu.DropdownItem
-                            key={professional.id}
-                            onClick={() => setSelectedProfessional(professional.id)}
-                          >
-                            {professional.name}
-                          </DropdownMenu.DropdownItem>
-                        ))
-                      )}
-                    </DropdownMenu>
-                  </SubframeCore.DropdownMenu.Content>
-                </SubframeCore.DropdownMenu.Portal>
-              </SubframeCore.DropdownMenu.Root>
-            </div>
+          
+          {/* Search */}
+          <div className="relative">
             <TextField
               className="h-10 w-96 flex-none [&>div]:rounded-full [&>div]:bg-neutral-100 [&>div]:hover:bg-neutral-200 [&>div]:transition-colors [&>div]:border-0 [&>div]:shadow-none [&>div:focus-within]:!bg-white [&>div:focus-within]:ring-0 [&>div:focus-within]:outline-none"
               variant="filled"
               label=""
               helpText=""
               icon={<FeatherSearch />}
-              iconRight={searchTerm ? (
+              iconRight={globalFilter ? (
                 <IconButton
                   variant="neutral-tertiary"
                   size="small"
                   icon={<FeatherX />}
-                  onClick={() => setSearchTerm('')}
+                  onClick={handleClearSearch}
                 />
               ) : null}
             >
               <TextField.Input
                 className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0"
-                placeholder="Search by patient name, order name, professional..."
-                value={searchTerm}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
+                placeholder="Search lab orders by name, patient, or lab..."
+                value={globalFilter}
+                onChange={handleSearchChange}
               />
             </TextField>
           </div>
-          <Table
-            className="h-auto w-full flex-none"
-            header={
-              <Table.HeaderRow className="w-full grow shrink-0 basis-0">
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('order_name')}
-                  >
-                    <span>Order name</span>
-                    {sortBy.column === 'order_name' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'order_name' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('patient_name')}
-                  >
-                    <span>Patient</span>
-                    {sortBy.column === 'patient_name' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'patient_name' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('professional_name')}
-                  >
-                    <span>Professional</span>
-                    {sortBy.column === 'professional_name' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'professional_name' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('lab_name')}
-                  >
-                    <span>Lab name</span>
-                    {sortBy.column === 'lab_name' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'lab_name' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('services')}
-                  >
-                    <span>Services</span>
-                    {sortBy.column === 'services' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'services' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('due_date')}
-                  >
-                    <span>Due date</span>
-                    {sortBy.column === 'due_date' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'due_date' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('total_price')}
-                  >
-                    <span>Total Price</span>
-                    {sortBy.column === 'total_price' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'total_price' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <div 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort('status')}
-                  >
-                    <span>Status</span>
-                    {sortBy.column === 'status' && (
-                      sortBy.direction === 'asc' ? 
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
-                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
-                    )}
-                    {sortBy.column !== 'status' && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </Table.HeaderCell>
-                <Table.HeaderCell />
-              </Table.HeaderRow>
-            }
-          >
-            {loading ? (
-              <Table.Row className="h-12 w-full flex-none">
-                <Table.Cell colSpan={9} className="h-16 text-center">
-                  <span className="text-body-medium font-body-medium text-neutral-500">
-                    Carregando...
-                  </span>
-                </Table.Cell>
-              </Table.Row>
-            ) : filteredLabOrders.length === 0 ? (
-              <Table.Row className="h-12 w-full flex-none">
-                <Table.Cell colSpan={9} className="h-16 text-center">
-                  <span className="text-body-medium font-body-medium text-neutral-500">
-                    Nenhum pedido encontrado
-                  </span>
-                </Table.Cell>
-              </Table.Row>
-            ) : (
-              filteredLabOrders.map((order) => (
-                <Table.Row key={order.id} className="h-12 w-full flex-none">
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <button
-                      className="text-body-medium font-body-medium text-brand-600 hover:text-brand-700 underline cursor-pointer"
-                      onClick={() => handleOrderClick(order.id!)}
-                    >
-                      {order.order_name}
-                    </button>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <span className="whitespace-nowrap text-body-medium font-body-medium text-neutral-500">
-                      {order.patient_name || 'N/A'}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <span className="whitespace-nowrap text-body-medium font-body-medium text-neutral-500">
-                      {order.professional_name || 'N/A'}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <LinkButton
-                      disabled={false}
-                      variant="brand"
-                      size="medium"
-                      icon={null}
-                      iconRight={null}
-                      onClick={() => handleLabNameClick(order.lab_name, order.supplier_id)}
-                    >
-                      {order.lab_name}
-                    </LinkButton>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <span className="whitespace-nowrap text-body-medium font-body-medium text-neutral-500">
-                      {order.services}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <span className="text-body-medium font-body-medium text-default-font">
-                      {new Date(order.due_date).toLocaleDateString('pt-BR')}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <span className="text-body-medium font-body-medium text-default-font">
-                      ${order.total_price.toFixed(2)}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell className="h-16 grow shrink-0 basis-0">
-                    <Chips
-                      variant={getStatusVariant(order.status) as any}
-                      icon={null}
-                      iconRight={null}
-                      size="large"
-                    >
-                      {getStatusText(order.status)}
-                    </Chips>
-                  </Table.Cell>
-                  <Table.Cell className="grow shrink-0 basis-0 flex justify-end items-center w-full h-full">
-                    <SubframeCore.DropdownMenu.Root>
-                      <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                        <IconButton
-                          size="medium"
-                          icon={<FeatherMoreHorizontal />}
-                          onClick={(
-                            event: React.MouseEvent<HTMLButtonElement>
-                          ) => {}}
-                        />
-                      </SubframeCore.DropdownMenu.Trigger>
-                      <SubframeCore.DropdownMenu.Portal>
-                        <SubframeCore.DropdownMenu.Content
-                          side="bottom"
-                          align="end"
-                          sideOffset={8}
-                          asChild={true}
-                        >
-                          <DropdownMenu>
-                            <DropdownMenu.DropdownItem icon={<FeatherStar />}>
-                              Favorite
-                            </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
-                              Add
-                            </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
-                              Edit
-                            </DropdownMenu.DropdownItem>
-                            <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
-                              Delete
-                            </DropdownMenu.DropdownItem>
-                          </DropdownMenu>
-                        </SubframeCore.DropdownMenu.Content>
-                      </SubframeCore.DropdownMenu.Portal>
-                    </SubframeCore.DropdownMenu.Root>
-                  </Table.Cell>
-                </Table.Row>
-              ))
-            )}
-          </Table>
+        </div>
+        
+        {/* Table */}
+        <div className="flex w-full grow shrink-0 basis-0 flex-col items-stretch gap-2 rounded-lg bg-default-background px-8 pb-6 overflow-auto">
+          <InfiniteScrollTable
+            professionals={professionals}
+            onEditOrder={handleEditOrder}
+            onDeleteOrder={handleDeleteOrder}
+            onViewDetails={handleViewDetails}
+            professionalFilter={selectedProfessional}
+            searchFilter={globalFilter}
+          />
         </div>
       </div>
 
-      {/* Modal para criar novo lab order */}
+      {/* Modals and Drawers */}
       <NewLabOrderModal
         open={showNewOrderModal}
-        onOpenChange={handleModalClose}
-        onLabOrderCreated={fetchLabOrders}
+        onOpenChange={handleNewOrderModalClose}
+        onLabOrderCreated={handleOrderCreated}
         editingOrder={editingOrder}
       />
 
-      {/* Drawer para mostrar detalhes do pedido */}
       <OrderDetailsDrawer
         open={showOrderDetails}
         onOpenChange={setShowOrderDetails}
         orderId={selectedOrderId}
-        onEditOrder={handleEditOrder}
       />
 
-      {/* Drawer para mostrar detalhes do supplier */}
       <SupplierDetailsDrawer
         open={showSupplierDetails}
         onOpenChange={setShowSupplierDetails}

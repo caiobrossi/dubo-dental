@@ -87,7 +87,7 @@ function OrderDetailsDrawer({ open, onOpenChange, orderId, onEditOrder }: OrderD
 
   if (loading) {
     return (
-      <DrawerLayout open={open} onOpenChange={onOpenChange}>
+      <DrawerLayout open={open} onOpenChange={onOpenChange} className="z-50">
         <div className="flex h-full w-144 flex-col items-start bg-page-bg">
           <div className="flex w-full items-center justify-center py-8">
             <span>Carregando detalhes do pedido...</span>
@@ -99,7 +99,7 @@ function OrderDetailsDrawer({ open, onOpenChange, orderId, onEditOrder }: OrderD
 
   if (!orderData) {
     return (
-      <DrawerLayout open={open} onOpenChange={onOpenChange}>
+      <DrawerLayout open={open} onOpenChange={onOpenChange} className="z-50">
         <div className="flex h-full w-144 flex-col items-start bg-page-bg">
           <div className="flex w-full items-center justify-center py-8">
             <span>Pedido não encontrado</span>
@@ -110,7 +110,7 @@ function OrderDetailsDrawer({ open, onOpenChange, orderId, onEditOrder }: OrderD
   }
 
   return (
-    <DrawerLayout open={open} onOpenChange={onOpenChange}>
+    <DrawerLayout open={open} onOpenChange={onOpenChange} className="z-50">
       <div className="flex h-full w-144 flex-col items-start bg-page-bg">
         <div className="flex w-full items-start border-b border-solid border-neutral-border bg-default-background px-4 py-4">
           <span className="grow shrink-0 basis-0 text-heading-2 font-heading-2 text-default-font">

@@ -203,7 +203,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
         {/* Panel Footer */}
         <div className="border-t border-neutral-200 p-4">
           <Button
-            variant="primary"
+            variant="brand-primary"
             size="small"
             className="w-full"
             onClick={() => {

@@ -29,6 +29,7 @@ export interface Patient {
   insurance_valid_until?: string
   professional_id?: string
   group_id?: string
+  last_visit?: string
   created_at?: string
   updated_at?: string
 }

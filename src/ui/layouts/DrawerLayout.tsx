@@ -22,7 +22,7 @@ const DrawerLayoutRoot = React.forwardRef<
   ref
 ) {
   return (
-    <Drawer className={className} ref={ref} {...otherProps}>
+    <Drawer className={SubframeUtils.twClassNames("z-50", className)} ref={ref} {...otherProps}>
       <Drawer.Content className="w-auto min-w-[448px] grow shrink-0 basis-0">
         {children ? (
           <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-8">

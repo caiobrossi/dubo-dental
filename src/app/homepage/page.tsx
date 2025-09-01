@@ -44,11 +44,11 @@ function Task() {
           </div>
           <div className="flex items-center gap-2">
             <SegmentControl>
-              <SegmentControl.Item value="all">All</SegmentControl.Item>
-              <SegmentControl.Item value="pending">
+              <SegmentControl.Item active={true}>All</SegmentControl.Item>
+              <SegmentControl.Item active={false}>
                 Pending
               </SegmentControl.Item>
-              <SegmentControl.Item value="completed">
+              <SegmentControl.Item active={false}>
                 Completed
               </SegmentControl.Item>
             </SegmentControl>
