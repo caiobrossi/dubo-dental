@@ -205,7 +205,7 @@ function PatientGroups() {
   return (
     <DefaultPageLayout>
       <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3 mobile:flex-col mobile:flex-nowrap mobile:gap-4">
-        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 border-b border-solid border-neutral-border mobile:container mobile:max-w-none">
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 mobile:container mobile:max-w-none">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
               Patients
@@ -237,12 +237,12 @@ function PatientGroups() {
         
         {/* Filters Section */}
         <div className="flex w-full flex-wrap items-center justify-between px-4 pb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {/* Sort by dropdown */}
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
                   <Button
-                    variant="neutral-tertiary"
+                    variant="neutral-secondary"
                     size="large"
                     iconRight={<FeatherChevronDown />}
                     onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
@@ -286,15 +286,21 @@ function PatientGroups() {
             
             {/* Search field */}
             <TextField
-              className="h-10 w-96 flex-none"
+              className="h-10 w-96 flex-none !rounded-full [&>*]:!rounded-full [&_input]:!rounded-full"
+              style={{ 
+                borderRadius: '9999px',
+              }}
               disabled={false}
               error={false}
+              variant="filled"
               label=""
               helpText=""
               icon={null}
               iconRight={null}
             >
               <TextField.Input
+                className="!rounded-full"
+                style={{ borderRadius: '9999px' }}
                 placeholder="Search groups..."
                 value={searchTerm}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}

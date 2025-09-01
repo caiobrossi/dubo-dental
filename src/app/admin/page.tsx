@@ -141,7 +141,12 @@ function ClinicInfo() {
             >
               Chairs and Rooms
             </SegmentControl.Item>
-            <SegmentControl.Item active={false}>My team</SegmentControl.Item>
+            <SegmentControl.Item 
+              active={false}
+              onClick={() => router.push('/admin/my-team')}
+            >
+              My team
+            </SegmentControl.Item>
             <SegmentControl.Item active={false}>Schedule shifts</SegmentControl.Item>
             <SegmentControl.Item active={false}>Team payment</SegmentControl.Item>
             <SegmentControl.Item active={false}>Finance</SegmentControl.Item>

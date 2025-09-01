@@ -12,7 +12,7 @@ import { TextField } from "@/ui/components/TextField";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import AddPatientModal from "@/components/custom/AddPatientModal";
 import AddToGroupModal from "@/components/custom/AddToGroupModal";
-import { FeatherChevronDown, FeatherComponent, FeatherEdit2, FeatherMoreHorizontal } from "@subframe/core";
+import { FeatherChevronDown, FeatherComponent, FeatherEdit2, FeatherMoreHorizontal, FeatherArrowUp, FeatherArrowDown } from "@subframe/core";
 import { FeatherPlus } from "@subframe/core";
 import { FeatherSearch } from "@subframe/core";
 import { FeatherStar } from "@subframe/core";
@@ -33,7 +33,7 @@ function PatientListing() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortBy, setSortBy] = useState<{ column: string; direction: 'asc' | 'desc' }>({ column: 'created_at', direction: 'desc' });
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [addToGroupModalOpen, setAddToGroupModalOpen] = useState(false);
   const [selectedPatientForGroup, setSelectedPatientForGroup] = useState<Patient | null>(null);
@@ -79,21 +79,45 @@ function PatientListing() {
     
     // Sort patients
     const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'a-z':
-          return (a.name || '').localeCompare(b.name || '');
-        case 'z-a':
-          return (b.name || '').localeCompare(a.name || '');
-        case 'newest':
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-        case 'oldest':
-          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      const { column, direction } = sortBy;
+      let comparison = 0;
+      
+      switch (column) {
+        case 'name':
+          comparison = (a.name || '').localeCompare(b.name || '');
+          break;
+        case 'id':
+          comparison = (a.id || '').localeCompare(b.id || '');
+          break;
+        case 'date_of_birth':
+          comparison = new Date(a.date_of_birth || 0).getTime() - new Date(b.date_of_birth || 0).getTime();
+          break;
+        case 'professional_name':
+          const aProfessional = professionals.find(p => p.id === a.professional_id);
+          const bProfessional = professionals.find(p => p.id === b.professional_id);
+          comparison = (aProfessional?.name || '').localeCompare(bProfessional?.name || '');
+          break;
+        case 'last_visit':
+          comparison = new Date(a.last_visit || 0).getTime() - new Date(b.last_visit || 0).getTime();
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+          break;
         default:
-          return 0;
+          comparison = 0;
       }
+      
+      return direction === 'asc' ? comparison : -comparison;
     });
     
     setFilteredPatients(sorted);
+  };
+
+  const handleSort = (column: string) => {
+    setSortBy(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
   };
 
   const loadPatients = async () => {
@@ -200,7 +224,7 @@ function PatientListing() {
   return (
     <DefaultPageLayout>
       <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3 mobile:flex-col mobile:flex-nowrap mobile:gap-4">
-        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 border-b border-solid border-neutral-border mobile:container mobile:max-w-none">
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 mobile:container mobile:max-w-none">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
               Patients
@@ -231,55 +255,11 @@ function PatientListing() {
         </div>
         
         <div className="flex w-full flex-wrap items-center justify-between px-4 pb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
                   <Button
-                    variant="neutral-tertiary"
-                    size="large"
-                    iconRight={<FeatherChevronDown />}
-                    onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
-                  >
-                    Sort by: {getSortDisplayText(sortBy)}
-                  </Button>
-                </SubframeCore.DropdownMenu.Trigger>
-                <SubframeCore.DropdownMenu.Portal>
-                  <SubframeCore.DropdownMenu.Content
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    asChild={true}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('a-z')}
-                      >
-                        A to Z
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('z-a')}
-                      >
-                        Z to A
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('newest')}
-                      >
-                        Newest to Oldest
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('oldest')}
-                      >
-                        Oldest to Newest
-                      </DropdownMenu.DropdownItem>
-                    </DropdownMenu>
-                  </SubframeCore.DropdownMenu.Content>
-                </SubframeCore.DropdownMenu.Portal>
-              </SubframeCore.DropdownMenu.Root>
-              
-              <SubframeCore.DropdownMenu.Root>
-                <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                  <Button
-                    variant="neutral-tertiary"
+                    variant="neutral-secondary"
                     size="large"
                     iconRight={<FeatherChevronDown />}
                     onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
@@ -324,7 +304,10 @@ function PatientListing() {
             </div>
             
             <TextField
-              className="h-10 w-96 flex-none"
+              className="h-10 w-96 flex-none !rounded-full [&>*]:!rounded-full [&_input]:!rounded-full"
+              style={{ 
+                borderRadius: '9999px',
+              }}
               variant="filled"
               label=""
               helpText=""
@@ -339,6 +322,8 @@ function PatientListing() {
               ) : null}
             >
               <TextField.Input
+                className="!rounded-full"
+                style={{ borderRadius: '9999px' }}
                 placeholder="Search by patient name, ID, dob"
                 value={searchTerm}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
@@ -351,10 +336,78 @@ function PatientListing() {
             className="h-auto w-full flex-none overflow-auto"
             header={
               <Table.HeaderRow>
-                <Table.HeaderCell>Patient</Table.HeaderCell>
-                <Table.HeaderCell>Date of Birth</Table.HeaderCell>
-                <Table.HeaderCell>Last Visit</Table.HeaderCell>
-                <Table.HeaderCell>Professional</Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('name')}
+                  >
+                    <span>Patient</span>
+                    {sortBy.column === 'name' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'name' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('date_of_birth')}
+                  >
+                    <span>Date of Birth</span>
+                    {sortBy.column === 'date_of_birth' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'date_of_birth' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('last_visit')}
+                  >
+                    <span>Last Visit</span>
+                    {sortBy.column === 'last_visit' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'last_visit' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('professional_name')}
+                  >
+                    <span>Professional</span>
+                    {sortBy.column === 'professional_name' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'professional_name' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
                 <Table.HeaderCell>Status</Table.HeaderCell>
                 <Table.HeaderCell>Actions</Table.HeaderCell>
               </Table.HeaderRow>

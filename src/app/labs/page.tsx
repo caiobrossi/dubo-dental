@@ -13,7 +13,7 @@ import { LinkButton } from "@/ui/components/LinkButton";
 import { Table } from "@/ui/components/Table";
 import { TextField } from "@/ui/components/TextField";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
-import { FeatherChevronDown } from "@subframe/core";
+import { FeatherChevronDown, FeatherChevronUp, FeatherArrowUp, FeatherArrowDown } from "@subframe/core";
 import { FeatherDownload } from "@subframe/core";
 import { FeatherEdit2 } from "@subframe/core";
 import { FeatherMoreHorizontal } from "@subframe/core";
@@ -32,7 +32,7 @@ function LabsOrder() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortBy, setSortBy] = useState<{ column: string; direction: 'asc' | 'desc' }>({ column: 'created_at', direction: 'desc' });
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
@@ -143,20 +143,42 @@ function LabsOrder() {
     
     // Sort orders
     const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'a-z':
-          return (a.order_name || '').localeCompare(b.order_name || '');
-        case 'z-a':
-          return (b.order_name || '').localeCompare(a.order_name || '');
-        case 'newest':
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-        case 'oldest':
-          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-        case 'due-date':
-          return new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime();
+      const { column, direction } = sortBy;
+      let comparison = 0;
+      
+      switch (column) {
+        case 'order_name':
+          comparison = (a.order_name || '').localeCompare(b.order_name || '');
+          break;
+        case 'patient_name':
+          comparison = (a.patient_name || '').localeCompare(b.patient_name || '');
+          break;
+        case 'professional_name':
+          comparison = (a.professional_name || '').localeCompare(b.professional_name || '');
+          break;
+        case 'lab_name':
+          comparison = (a.lab_name || '').localeCompare(b.lab_name || '');
+          break;
+        case 'services':
+          comparison = (a.services || '').localeCompare(b.services || '');
+          break;
+        case 'due_date':
+          comparison = new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime();
+          break;
+        case 'total_price':
+          comparison = (a.total_price || 0) - (b.total_price || 0);
+          break;
+        case 'status':
+          comparison = (a.status || '').localeCompare(b.status || '');
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+          break;
         default:
-          return 0;
+          comparison = 0;
       }
+      
+      return direction === 'asc' ? comparison : -comparison;
     });
     
     setFilteredLabOrders(sorted);
@@ -221,15 +243,11 @@ function LabsOrder() {
     }
   };
 
-  const getSortDisplayText = (sortOption: string) => {
-    switch (sortOption) {
-      case 'a-z': return 'A to Z';
-      case 'z-a': return 'Z to A';
-      case 'newest': return 'Newest to Oldest';
-      case 'oldest': return 'Oldest to Newest';
-      case 'due-date': return 'Due Date';
-      default: return 'Newest to Oldest';
-    }
+  const handleSort = (column: string) => {
+    setSortBy(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
   };
 
   // Função para mapear status para variante do chip
@@ -259,7 +277,7 @@ function LabsOrder() {
   return (
     <DefaultPageLayout>
       <div className="flex h-full w-full flex-col items-start gap-4 bg-default-background shadow-md pb-3">
-        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2 border-b border-solid border-neutral-border">
+        <div className="flex h-auto w-full flex-none items-center justify-between px-8 py-2">
           <div className="flex flex-col items-start gap-2">
             <span className="text-heading-2 font-heading-2 text-default-font">
               Labs Order
@@ -315,60 +333,11 @@ function LabsOrder() {
         </div>
         <div className="flex w-full grow shrink-0 basis-0 flex-col items-start gap-6 rounded-lg bg-default-background px-4 py-4 overflow-auto">
           <div className="flex w-full flex-wrap items-center justify-between pb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <SubframeCore.DropdownMenu.Root>
                 <SubframeCore.DropdownMenu.Trigger asChild={true}>
                   <Button
-                    variant="neutral-tertiary"
-                    size="large"
-                    iconRight={<FeatherChevronDown />}
-                    onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
-                  >
-                    Sort by: {getSortDisplayText(sortBy)}
-                  </Button>
-                </SubframeCore.DropdownMenu.Trigger>
-                <SubframeCore.DropdownMenu.Portal>
-                  <SubframeCore.DropdownMenu.Content
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    asChild={true}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('a-z')}
-                      >
-                        A to Z
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('z-a')}
-                      >
-                        Z to A
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('newest')}
-                      >
-                        Newest to Oldest
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('oldest')}
-                      >
-                        Oldest to Newest
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem
-                        onClick={() => setSortBy('due-date')}
-                      >
-                        Due Date
-                      </DropdownMenu.DropdownItem>
-                    </DropdownMenu>
-                  </SubframeCore.DropdownMenu.Content>
-                </SubframeCore.DropdownMenu.Portal>
-              </SubframeCore.DropdownMenu.Root>
-              
-              <SubframeCore.DropdownMenu.Root>
-                <SubframeCore.DropdownMenu.Trigger asChild={true}>
-                  <Button
-                    variant="neutral-tertiary"
+                    variant="neutral-secondary"
                     size="large"
                     iconRight={<FeatherChevronDown />}
                     onClick={(event: React.MouseEvent<HTMLButtonElement>) => {}}
@@ -412,7 +381,7 @@ function LabsOrder() {
               </SubframeCore.DropdownMenu.Root>
             </div>
             <TextField
-              className="h-10 w-96 flex-none"
+              className="h-10 w-96 flex-none [&>div]:rounded-full [&>div]:bg-neutral-100 [&>div]:hover:bg-neutral-200 [&>div]:transition-colors [&>div]:border-0 [&>div]:shadow-none [&>div:focus-within]:!bg-white [&>div:focus-within]:ring-0 [&>div:focus-within]:outline-none"
               variant="filled"
               label=""
               helpText=""
@@ -427,6 +396,7 @@ function LabsOrder() {
               ) : null}
             >
               <TextField.Input
+                className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0"
                 placeholder="Search by patient name, order name, professional..."
                 value={searchTerm}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
@@ -437,14 +407,150 @@ function LabsOrder() {
             className="h-auto w-full flex-none"
             header={
               <Table.HeaderRow className="w-full grow shrink-0 basis-0">
-                <Table.HeaderCell>Order name</Table.HeaderCell>
-                <Table.HeaderCell>Patient</Table.HeaderCell>
-                <Table.HeaderCell>Professional</Table.HeaderCell>
-                <Table.HeaderCell>Lab name</Table.HeaderCell>
-                <Table.HeaderCell>Services</Table.HeaderCell>
-                <Table.HeaderCell>Due date</Table.HeaderCell>
-                <Table.HeaderCell>Total Price</Table.HeaderCell>
-                <Table.HeaderCell>Status</Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('order_name')}
+                  >
+                    <span>Order name</span>
+                    {sortBy.column === 'order_name' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'order_name' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('patient_name')}
+                  >
+                    <span>Patient</span>
+                    {sortBy.column === 'patient_name' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'patient_name' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('professional_name')}
+                  >
+                    <span>Professional</span>
+                    {sortBy.column === 'professional_name' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'professional_name' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('lab_name')}
+                  >
+                    <span>Lab name</span>
+                    {sortBy.column === 'lab_name' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'lab_name' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('services')}
+                  >
+                    <span>Services</span>
+                    {sortBy.column === 'services' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'services' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('due_date')}
+                  >
+                    <span>Due date</span>
+                    {sortBy.column === 'due_date' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'due_date' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('total_price')}
+                  >
+                    <span>Total Price</span>
+                    {sortBy.column === 'total_price' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'total_price' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
+                <Table.HeaderCell className="group relative cursor-pointer hover:bg-neutral-50 transition-colors">
+                  <div 
+                    className="flex items-center gap-1"
+                    onClick={() => handleSort('status')}
+                  >
+                    <span>Status</span>
+                    {sortBy.column === 'status' && (
+                      sortBy.direction === 'asc' ? 
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-600" /> : 
+                        <FeatherArrowDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                    {sortBy.column !== 'status' && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FeatherArrowUp className="w-4 h-4 text-neutral-400" />
+                      </div>
+                    )}
+                  </div>
+                </Table.HeaderCell>
                 <Table.HeaderCell />
               </Table.HeaderRow>
             }

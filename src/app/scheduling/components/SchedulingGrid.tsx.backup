@@ -523,6 +523,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
             onSelectOpen={handleSelectOpenChange}
           />
         )}
+        </div>
       </div>
       
       {/* Drag overlay for smooth dragging experience */}
@@ -543,3 +544,5 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
 });
 
 SchedulingGrid.displayName = 'SchedulingGrid';
+
+export { SchedulingGrid };

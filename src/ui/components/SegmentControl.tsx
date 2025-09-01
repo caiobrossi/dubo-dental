@@ -32,10 +32,12 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>(function Item(
   return (
     <div
       className={SubframeUtils.twClassNames(
-        "group/96fe59ea flex h-full cursor-pointer items-center justify-center gap-2 rounded-full bg-new-white-6 px-4 hover:bg-neutral-100 hover:px-4 hover:py-0.5",
+        "group/96fe59ea flex h-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 transition-colors",
         {
-          "rounded-full bg-default-background px-4 py-0 shadow-md hover:border-none hover:bg-new-white-100":
-            active,
+          // Rest state: transparent bg, hover adds light bg
+          "bg-transparent hover:bg-neutral-50": !active,
+          // Active state: neutral-100 bg with border, hover changes to default-background
+          "bg-neutral-100 border border-neutral-border hover:bg-default-background": active,
         },
         className
       )}
@@ -45,11 +47,14 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>(function Item(
       {icon ? (
         <SubframeCore.IconWrapper
           className={SubframeUtils.twClassNames(
-            "text-body-medium font-body-medium text-subtext-color group-hover/96fe59ea:text-default-font",
+            "text-body-medium font-body-medium transition-colors",
             {
-              "text-neutral-400 group-hover/96fe59ea:text-neutral-400":
-                disabled,
-              "text-brand-700 group-hover/96fe59ea:text-brand-700": active,
+              // Rest state: neutral-400, hover changes to default-font
+              "text-neutral-400 group-hover/96fe59ea:text-default-font": !active && !disabled,
+              // Active state: default-font color always
+              "text-default-font": active && !disabled,
+              // Disabled state
+              "text-neutral-400 group-hover/96fe59ea:text-neutral-400": disabled,
             }
           )}
         >
@@ -59,11 +64,14 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>(function Item(
       {children ? (
         <span
           className={SubframeUtils.twClassNames(
-            "line-clamp-1 text-body-large font-body-large text-subtext-color group-hover/96fe59ea:text-default-font",
+            "line-clamp-1 text-body-large font-body-large transition-colors",
             {
-              "text-neutral-400 group-hover/96fe59ea:text-neutral-400":
-                disabled,
-              "text-brand-700 group-hover/96fe59ea:text-default-font": active,
+              // Rest state: neutral-400, hover changes to default-font
+              "text-neutral-400 group-hover/96fe59ea:text-default-font": !active && !disabled,
+              // Active state: default-font color always
+              "text-default-font": active && !disabled,
+              // Disabled state
+              "text-neutral-400 group-hover/96fe59ea:text-neutral-400": disabled,
             }
           )}
         >
@@ -97,7 +105,7 @@ const SegmentControlRoot = React.forwardRef<
   return (
     <div
       className={SubframeUtils.twClassNames(
-        "group/55b22a30 flex h-10 w-full items-center justify-center rounded-full px-0.5 py-0.5",
+        "group/55b22a30 flex h-[40px] w-full items-center justify-center rounded-full px-0.5 py-0.5",
         { "border-none bg-transparent": variant2 === "light-bg" },
         className
       )}

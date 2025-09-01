@@ -37,8 +37,29 @@ export interface Patient {
 export interface Professional {
   id: string
   name: string
-  specialty?: string
+  cro_id?: string
+  avatar_url?: string
+  date_of_birth?: string
+  gender?: 'male' | 'female' | 'rather_not_say'
+  clinic_branch?: string
   email?: string
+  mobile?: string
+  alternative_phone?: string
+  address?: string
+  post_code?: string
+  city?: string
+  state?: string
+  role?: string
+  schedule_type?: string
+  start_date?: string
+  working_hours?: {
+    [key: string]: {
+      enabled: boolean
+      start: string
+      end: string
+    }
+  }
+  specialty?: string
   created_at?: string
   updated_at?: string
 }

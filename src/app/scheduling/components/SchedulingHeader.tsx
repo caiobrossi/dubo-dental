@@ -65,7 +65,7 @@ export const SchedulingHeader = memo<SchedulingHeaderProps>(({
   };
 
   return (
-    <div className="flex w-full flex-none items-center justify-between px-8 py-2 bg-default-background border-b border-solid border-neutral-border">
+    <div className="flex w-full flex-none items-center justify-between px-8 py-2 bg-default-background">
       <div className="flex flex-col items-start gap-2">
         <span className="text-heading-2 font-heading-2 text-default-font">
           Scheduling
