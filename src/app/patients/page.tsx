@@ -13,6 +13,7 @@ import * as SubframeCore from "@subframe/core";
 import { supabase, Patient, Professional } from "@/lib/supabase";
 import { useToast } from "../../contexts/ToastContext";
 import { useRouter } from "next/navigation";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // New TanStack Table imports
 import { InfiniteScrollTable } from "./components/InfiniteScrollTable";
@@ -213,7 +214,7 @@ function PatientListing() {
             >
               <TextField.Input
                 className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0"
-                placeholder="Search patients by name, ID, or date of birth..."
+                placeholder="Search patients by name, email, phone, or ID..."
                 value={globalFilter}
                 onChange={handleSearchChange}
               />
@@ -223,13 +224,15 @@ function PatientListing() {
         
         {/* Table */}
         <div className="flex w-full grow shrink-0 basis-0 flex-col items-stretch gap-2 rounded-lg bg-default-background px-8 pb-6 overflow-auto">
-          <InfiniteScrollTable
-            professionals={professionals}
-            onEditPatient={handleEditPatient}
-            onDeletePatient={handleDeletePatient}
-            professionalFilter={selectedProfessional}
-            searchFilter={globalFilter}
-          />
+          <ErrorBoundary>
+            <InfiniteScrollTable
+              professionals={professionals}
+              onEditPatient={handleEditPatient}
+              onDeletePatient={handleDeletePatient}
+              professionalFilter={selectedProfessional}
+              searchFilter={globalFilter}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 

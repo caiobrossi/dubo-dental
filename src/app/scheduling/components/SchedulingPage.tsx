@@ -216,7 +216,6 @@ const SchedulingPage: React.FC = () => {
           onSearchChange={handleSearchChange}
           onAddClick={handleAddClick}
           onAppointmentSelect={handleAppointmentSelect}
-          onCalendarToggle={togglePanel}
         />
 
         {/* Main scheduling area */}
@@ -231,6 +230,7 @@ const SchedulingPage: React.FC = () => {
               onDateChange={handleDateChange}
               onViewModeChange={handleViewModeChange}
               onProfessionalChange={handleProfessionalChange}
+              onCalendarPanelToggle={togglePanel}
             />
 
             {/* Scheduling grid */}

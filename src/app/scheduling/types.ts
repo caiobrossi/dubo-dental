@@ -3,6 +3,16 @@
 export type ViewMode = 'day' | '5days' | 'week';
 export type AppointmentModalType = 'appointment' | 'blocked';
 
+// Export the standard AppointmentStatus type for consistency
+export type AppointmentStatus = 
+  | 'scheduled'
+  | 'confirmed' 
+  | 'cancelled' 
+  | 'no-show' 
+  | 'waiting' 
+  | 'in-progress' 
+  | 'complete';
+
 export interface Appointment {
   id: string;
   patient_id: string;
@@ -14,7 +24,7 @@ export interface Appointment {
   end_time: string; // HH:MM format
   duration_minutes: number;
   appointment_type: string;
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  status: AppointmentStatus;
   notes?: string;
   color?: string;
   created_at: string;

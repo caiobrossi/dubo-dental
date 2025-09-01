@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
+import { useRouter } from 'next/navigation';
 import { Avatar } from "@/ui/components/Avatar";
 import { Chips } from "@/ui/components/Chips";
 import { DropdownMenu } from "@/ui/components/DropdownMenu";
 import { IconButton } from "@/ui/components/IconButton";
 import { SortableHeader } from "@/ui/components/SortableHeader";
-import { FeatherMoreHorizontal, FeatherEdit2, FeatherTrash } from "@subframe/core";
+import { FeatherMoreHorizontal, FeatherEdit2, FeatherTrash, FeatherEye } from "@subframe/core";
 import * as SubframeCore from "@subframe/core";
 import { Patient, Professional } from "@/lib/supabase";
 import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
@@ -21,6 +22,8 @@ interface ColumnProps {
 }
 
 export function usePatientColumns({ professionals, onEditPatient, onDeletePatient }: ColumnProps) {
+  const router = useRouter();
+  
   return useMemo<ColumnDef<PatientRowData>[]>(() => [
     {
       accessorKey: 'name',
@@ -44,7 +47,10 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
               </Avatar>
             </div>
             <div className="flex flex-col items-start gap-1">
-              <span className="whitespace-nowrap font-['Urbanist'] text-[20px] font-[600] leading-[24px] text-neutral-700">
+              <span 
+                className="whitespace-nowrap font-['Urbanist'] text-[20px] font-[600] leading-[24px] text-neutral-700 cursor-pointer hover:text-brand-600 transition-colors"
+                onClick={() => router.push(`/patients/${patient.id}`)}
+              >
                 {formatPatientNameForDisplay(patient.name)}
               </span>
               <span className="whitespace-nowrap text-body-medium font-body-medium text-subtext-color">
@@ -224,6 +230,12 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
                 >
                   <DropdownMenu>
                     <DropdownMenu.DropdownItem 
+                      icon={<FeatherEye />}
+                      onClick={() => router.push(`/patients/${patient.id}`)}
+                    >
+                      View Details
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem 
                       icon={<FeatherEdit2 />}
                       onClick={() => onEditPatient(patient)}
                     >
@@ -245,5 +257,5 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
       enableSorting: false,
       size: 60, // Minimum width for actions dropdown button
     },
-  ], [professionals, onEditPatient, onDeletePatient]);
+  ], [professionals, onEditPatient, onDeletePatient, router]);
 }

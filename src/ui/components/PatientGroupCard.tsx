@@ -50,62 +50,60 @@ const PatientGroupCardRoot = React.forwardRef<
   return (
     <div
       className={SubframeUtils.twClassNames(
-        "group/fc5bb1ea flex h-32 w-full cursor-pointer flex-col items-start justify-between rounded-md border border-solid border-neutral-border bg-default-background px-4 py-4 shadow-sm hover:bg-neutral-50",
+        "group/fc5bb1ea flex w-full cursor-pointer flex-col items-start justify-between rounded-md bg-neutral-100 hover:bg-white hover:shadow-md hover:border hover:border-neutral-border p-4 transition-all min-h-[140px]",
         className
       )}
       ref={ref}
       {...otherProps}
     >
-      <div className="flex w-full items-center gap-2">
+      <div className="flex w-full items-center gap-3 pb-4">
         {/* Colored icon badge replacing previous image */}
-        {(
-          <div
-            className="h-6 w-6 flex-none rounded-full flex items-center justify-center"
-            style={{
-              backgroundColor: (
-                {
-                  blue: "#3b82f6",
-                  green: "#10b981",
-                  red: "#ef4444",
-                  yellow: "#f59e0b",
-                  purple: "#8b5cf6",
-                  orange: "#f97316",
-                  pink: "#ec4899",
-                  gray: "#6b7280",
-                  indigo: "#6366f1",
-                  teal: "#14b8a6",
-                  cyan: "#06b6d4",
-                  emerald: "#10b981",
-                } as Record<string, string>
-              )[groupColor || "blue"] || "#3b82f6",
-            }}
-          >
-            {(() => {
-              const iconName = (groupIcon || "users").toLowerCase();
-              const iconClass = "w-3 h-3 text-white";
-              switch (iconName) {
-                case "users":
-                  return <FeatherUsers className={iconClass} />;
-                case "user":
-                  return <FeatherUser className={iconClass} />;
-                case "component":
-                  return <FeatherComponent className={iconClass} />;
-                case "syringe":
-                  return <FeatherSyringe className={iconClass} />;
-                case "star":
-                  return <FeatherStar className={iconClass} />;
-                case "heart":
-                  return <FeatherHeart className={iconClass} />;
-                case "shield":
-                  return <FeatherShield className={iconClass} />;
-                case "settings":
-                  return <FeatherSettings className={iconClass} />;
-                default:
-                  return <FeatherUsers className={iconClass} />;
-              }
-            })()}
-          </div>
-        )}
+        <div
+          className="h-8 w-8 flex-none rounded-full flex items-center justify-center"
+          style={{
+            backgroundColor: (
+              {
+                blue: "#3b82f6",
+                green: "#10b981",
+                red: "#ef4444",
+                yellow: "#f59e0b",
+                purple: "#8b5cf6",
+                orange: "#f97316",
+                pink: "#ec4899",
+                gray: "#6b7280",
+                indigo: "#6366f1",
+                teal: "#14b8a6",
+                cyan: "#06b6d4",
+                emerald: "#10b981",
+              } as Record<string, string>
+            )[groupColor || "blue"] || "#3b82f6",
+          }}
+        >
+          {(() => {
+            const iconName = (groupIcon || "users").toLowerCase();
+            const iconClass = "w-4 h-4 text-white";
+            switch (iconName) {
+              case "users":
+                return <FeatherUsers className={iconClass} />;
+              case "user":
+                return <FeatherUser className={iconClass} />;
+              case "component":
+                return <FeatherComponent className={iconClass} />;
+              case "syringe":
+                return <FeatherSyringe className={iconClass} />;
+              case "star":
+                return <FeatherStar className={iconClass} />;
+              case "heart":
+                return <FeatherHeart className={iconClass} />;
+              case "shield":
+                return <FeatherShield className={iconClass} />;
+              case "settings":
+                return <FeatherSettings className={iconClass} />;
+              default:
+                return <FeatherUsers className={iconClass} />;
+            }
+          })()}
+        </div>
         {title ? (
           <span className="line-clamp-2 grow shrink-0 basis-0 text-heading-3 font-heading-3 text-default-font">
             {title}
@@ -113,7 +111,7 @@ const PatientGroupCardRoot = React.forwardRef<
         ) : null}
         <SubframeCore.DropdownMenu.Root>
           <SubframeCore.DropdownMenu.Trigger asChild={true}>
-            <IconButton size="small" icon={<FeatherMoreVertical />} />
+            <IconButton size="medium" icon={<FeatherMoreVertical />} />
           </SubframeCore.DropdownMenu.Trigger>
           <SubframeCore.DropdownMenu.Portal>
             <SubframeCore.DropdownMenu.Content
@@ -131,23 +129,13 @@ const PatientGroupCardRoot = React.forwardRef<
           </SubframeCore.DropdownMenu.Portal>
         </SubframeCore.DropdownMenu.Root>
       </div>
-      <div className="flex w-full flex-col items-start gap-1">
-        <div className="flex w-full items-center gap-2">
-          <FeatherUser className="text-body-medium font-body-medium text-subtext-color" />
-          {patientCount ? (
-            <span className="text-body-small font-body-small text-subtext-color">
-              {patientCount}
-            </span>
-          ) : null}
-        </div>
-        <div className="hidden w-full items-center gap-2">
-          <FeatherShare2 className="text-body-medium font-body-medium text-subtext-color" />
-          {patientCount ? (
-            <span className="text-body-small font-body-small text-subtext-color">
-              {patientCount}
-            </span>
-          ) : null}
-        </div>
+      <div className="flex w-full items-center gap-2">
+        <FeatherUser className="text-body-medium font-body-medium text-subtext-color" />
+        {patientCount ? (
+          <span className="text-caption font-caption text-subtext-color">
+            {patientCount}
+          </span>
+        ) : null}
       </div>
     </div>
   );

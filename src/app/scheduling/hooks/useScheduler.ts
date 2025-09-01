@@ -1,26 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
+import { Appointment as AppointmentType, AppointmentStatus } from '../types';
 
-export type AppointmentStatus = 
-  | 'scheduled'
-  | 'confirmed' 
-  | 'cancelled' 
-  | 'no-show' 
-  | 'waiting' 
-  | 'in-progress' 
-  | 'complete';
-
-export interface Appointment {
-  id: string;
-  patient_id?: string;
-  patient_name: string;
-  professional_name: string;
-  appointment_date: string;
-  start_time: string;
-  end_time: string;
-  appointment_type?: string;
-  notes?: string;
-  status: AppointmentStatus;
-}
+// Re-export the Appointment type from types
+export type Appointment = AppointmentType;
 
 export interface BlockedTime {
   id: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/ui/components/Button";
 import { IconButton } from "@/ui/components/IconButton";
 import { RadioGroup } from "@/ui/components/RadioGroup";
@@ -32,9 +32,10 @@ interface AddProfessionalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProfessionalAdded: () => void;
+  editingProfessional?: Professional | null;
 }
 
-function AddProfessionalModal({ open, onOpenChange, onProfessionalAdded }: AddProfessionalModalProps) {
+function AddProfessionalModal({ open, onOpenChange, onProfessionalAdded, editingProfessional }: AddProfessionalModalProps) {
   const { showSuccess, showError } = useToast();
   
   // Basic Information
@@ -71,27 +72,121 @@ function AddProfessionalModal({ open, onOpenChange, onProfessionalAdded }: AddPr
     sunday: { enabled: false, start: "09:00", end: "18:00" }
   });
 
+  // Fill form when editing a professional
+  useEffect(() => {
+    if (editingProfessional) {
+      setProfessionalName(editingProfessional.name || "");
+      setCroId(editingProfessional.cro_id || "");
+      setAvatarUrl(editingProfessional.image || "");
+      setDateOfBirth(editingProfessional.date_of_birth || "");
+      setGender(editingProfessional.gender || "");
+      setClinicBranch(editingProfessional.clinic_branch || "");
+      setEmail(editingProfessional.email || "");
+      setMobile(editingProfessional.mobile || "");
+      setAlternativePhone(editingProfessional.alternative_phone || "");
+      setAddress(editingProfessional.address || "");
+      setPostCode(editingProfessional.post_code || "");
+      setCity(editingProfessional.city || "");
+      setState(editingProfessional.state || "");
+      setRole(editingProfessional.role || "");
+      setScheduleType(editingProfessional.schedule_type || "fixed");
+      setStartDate(editingProfessional.start_date || "");
+
+      // Set working hours from professional data
+      const daysMap = {
+        monday: { start: editingProfessional.monday_start, end: editingProfessional.monday_end },
+        tuesday: { start: editingProfessional.tuesday_start, end: editingProfessional.tuesday_end },
+        wednesday: { start: editingProfessional.wednesday_start, end: editingProfessional.wednesday_end },
+        thursday: { start: editingProfessional.thursday_start, end: editingProfessional.thursday_end },
+        friday: { start: editingProfessional.friday_start, end: editingProfessional.friday_end },
+        saturday: { start: editingProfessional.saturday_start, end: editingProfessional.saturday_end },
+        sunday: { start: editingProfessional.sunday_start, end: editingProfessional.sunday_end }
+      };
+
+      const newWorkingHours: WorkingHours = {};
+
+      // Initialize all days first with default values
+      const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      allDays.forEach(day => {
+        newWorkingHours[day] = { enabled: false, start: "09:00", end: "18:00" };
+      });
+
+      // Then update with actual data from professional
+      Object.entries(daysMap).forEach(([day, times]) => {
+        if (newWorkingHours[day]) {
+          newWorkingHours[day] = {
+            enabled: !!(times.start && times.end),
+            start: times.start || "09:00",
+            end: times.end || "18:00"
+          };
+        }
+      });
+      setWorkingHours(newWorkingHours);
+    } else {
+      // Reset form for add mode
+      setProfessionalName("");
+      setCroId("");
+      setAvatarUrl("");
+      setDateOfBirth("");
+      setGender("");
+      setClinicBranch("");
+      setEmail("");
+      setMobile("");
+      setAlternativePhone("");
+      setAddress("");
+      setPostCode("");
+      setCity("");
+      setState("");
+      setRole("");
+      setScheduleType("fixed");
+      setStartDate("");
+      setWorkingHours({
+        monday: { enabled: true, start: "09:00", end: "18:00" },
+        tuesday: { enabled: true, start: "09:00", end: "18:00" },
+        wednesday: { enabled: true, start: "09:00", end: "18:00" },
+        thursday: { enabled: true, start: "09:00", end: "18:00" },
+        friday: { enabled: true, start: "09:00", end: "18:00" },
+        saturday: { enabled: false, start: "09:00", end: "18:00" },
+        sunday: { enabled: false, start: "09:00", end: "18:00" }
+      });
+    }
+  }, [editingProfessional, open]);
+
   const handleWorkingHoursChange = (day: string, field: 'enabled' | 'start' | 'end', value: boolean | string) => {
-    setWorkingHours(prev => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        [field]: value
-      }
-    }));
+    setWorkingHours(prev => {
+      const currentDay = prev[day] || { enabled: false, start: "09:00", end: "18:00" };
+      return {
+        ...prev,
+        [day]: {
+          ...currentDay,
+          [field]: value
+        }
+      };
+    });
   };
 
   const calculateHours = (day: string) => {
     const dayHours = workingHours[day];
-    if (!dayHours.enabled) return "0 h";
+    if (!dayHours || !dayHours.enabled || !dayHours.start || !dayHours.end) return "0 h";
     
-    const start = dayHours.start.split(':');
-    const end = dayHours.end.split(':');
-    const startHour = parseInt(start[0]) + parseInt(start[1]) / 60;
-    const endHour = parseInt(end[0]) + parseInt(end[1]) / 60;
-    const hours = endHour - startHour;
-    
-    return hours > 0 ? `${hours} h` : "0 h";
+    try {
+      const start = dayHours.start.split(':');
+      const end = dayHours.end.split(':');
+      
+      if (start.length !== 2 || end.length !== 2) return "0 h";
+      
+      const startHour = parseInt(start[0]) + parseInt(start[1]) / 60;
+      const endHour = parseInt(end[0]) + parseInt(end[1]) / 60;
+      
+      if (isNaN(startHour) || isNaN(endHour)) return "0 h";
+      
+      const hours = endHour - startHour;
+      
+      return hours > 0 ? `${hours.toFixed(1)} h` : "0 h";
+    } catch (error) {
+      console.error('Error calculating hours for', day, ':', error);
+      return "0 h";
+    }
   };
 
   const handleSave = async () => {
@@ -101,44 +196,114 @@ function AddProfessionalModal({ open, onOpenChange, onProfessionalAdded }: AddPr
         return;
       }
 
+      console.log('Working Hours before save:', workingHours);
 
-      const { data, error } = await supabase
+      const professionalData = {
+        name: professionalName,
+        cro_id: croId || null,
+        image: avatarUrl || null,
+        date_of_birth: dateOfBirth || null,
+        gender: gender || null,
+        clinic_branch: clinicBranch || null,
+        email: email,
+        mobile: mobile || null,
+        alternative_phone: alternativePhone || null,
+        address: address || null,
+        post_code: postCode || null,
+        city: city || null,
+        state: state || null,
+        role: role || 'General Dentist',
+        schedule_type: scheduleType || 'fixed',
+        start_date: startDate || null,
+        specialty: role || 'General Dentist',
+        // Working hours individual fields
+        monday_start: workingHours.monday?.enabled ? workingHours.monday.start : null,
+        monday_end: workingHours.monday?.enabled ? workingHours.monday.end : null,
+        tuesday_start: workingHours.tuesday?.enabled ? workingHours.tuesday.start : null,
+        tuesday_end: workingHours.tuesday?.enabled ? workingHours.tuesday.end : null,
+        wednesday_start: workingHours.wednesday?.enabled ? workingHours.wednesday.start : null,
+        wednesday_end: workingHours.wednesday?.enabled ? workingHours.wednesday.end : null,
+        thursday_start: workingHours.thursday?.enabled ? workingHours.thursday.start : null,
+        thursday_end: workingHours.thursday?.enabled ? workingHours.thursday.end : null,
+        friday_start: workingHours.friday?.enabled ? workingHours.friday.start : null,
+        friday_end: workingHours.friday?.enabled ? workingHours.friday.end : null,
+        saturday_start: workingHours.saturday?.enabled ? workingHours.saturday.start : null,
+        saturday_end: workingHours.saturday?.enabled ? workingHours.saturday.end : null,
+        sunday_start: workingHours.sunday?.enabled ? workingHours.sunday.start : null,
+        sunday_end: workingHours.sunday?.enabled ? workingHours.sunday.end : null,
+      };
+
+      console.log('Professional data to save:', professionalData);
+
+      let data, error;
+
+      if (editingProfessional) {
+        // Update existing professional
+        ({ data, error } = await supabase
+          .from('professionals')
+          .update(professionalData)
+          .eq('id', editingProfessional.id)
+          .select());
+      } else {
+        // Create new professional
+        ({ data, error } = await supabase
+          .from('professionals')
+          .insert([professionalData])
+          .select());
+      }
+
+      if (error) {
+        console.error('Supabase error:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error hint:', error.hint);
+        throw error;
+      }
+
+      console.log('Professional saved successfully:', data);
+      showSuccess(
+        editingProfessional ? "Professional Updated" : "Professional Added", 
+        editingProfessional ? "Professional has been updated successfully!" : "New professional has been added successfully!"
+      );
+      onProfessionalAdded();
+      onOpenChange(false);
+      handleClearAll();
+    } catch (error) {
+      console.error('Error saving professional:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showError("Error", `Failed to save professional: ${errorMessage}`);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingProfessional) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete ${editingProfessional.name}?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const { error } = await supabase
         .from('professionals')
-        .insert([{
-          name: professionalName,
-          cro_id: croId || null,
-          avatar_url: avatarUrl || null,
-          date_of_birth: dateOfBirth || null,
-          gender: gender || null,
-          clinic_branch: clinicBranch || null,
-          email: email,
-          mobile: mobile || null,
-          alternative_phone: alternativePhone || null,
-          address: address || null,
-          post_code: postCode || null,
-          city: city || null,
-          state: state || null,
-          role: role || 'General Dentist',
-          schedule_type: scheduleType || 'fixed',
-          start_date: startDate || null,
-          working_hours: workingHours,
-          specialty: role || 'General Dentist'
-        }])
-        .select();
+        .delete()
+        .eq('id', editingProfessional.id);
 
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
 
-      console.log('Professional created successfully:', data);
-      showSuccess("Professional Added", "New professional has been added successfully!");
-      onProfessionalAdded();
+      showSuccess("Professional Deleted", "Professional has been deleted successfully!");
+      onProfessionalAdded(); // Refresh the list
       onOpenChange(false);
       handleClearAll();
     } catch (error) {
-      console.error('Error adding professional:', error);
-      showError("Error", `Failed to add professional: ${error.message || 'Unknown error'}`);
+      console.error('Error deleting professional:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showError("Error", `Failed to delete professional: ${errorMessage}`);
     }
   };
 
@@ -186,7 +351,7 @@ function AddProfessionalModal({ open, onOpenChange, onProfessionalAdded }: AddPr
         {/* Header Fixo */}
         <div className="flex w-full shrink-0 items-center justify-between border-b border-solid border-neutral-border bg-white/50 backdrop-blur px-4 py-4 sticky top-0 z-10">
           <span className="text-heading-2 font-heading-2 text-default-font">
-            Add professional
+            {editingProfessional ? 'Edit professional' : 'Add professional'}
           </span>
           <IconButton
             disabled={false}
@@ -638,28 +803,59 @@ function AddProfessionalModal({ open, onOpenChange, onProfessionalAdded }: AddPr
         
         {/* Footer Fixo */}
         <div className="flex w-full shrink-0 items-start justify-between border-t border-solid border-neutral-border bg-white/50 backdrop-blur px-4 py-4 sticky bottom-0 z-10 flex-col sm:flex-row gap-3 sm:gap-0">
-          <Button
-            disabled={false}
-            variant="destructive-tertiary"
-            size="large"
-            icon={null}
-            iconRight={null}
-            loading={false}
-            onClick={handleClearAll}
-          >
-            Clear all
-          </Button>
-          <Button
-            disabled={false}
-            variant="brand-primary"
-            size="large"
-            icon={null}
-            iconRight={null}
-            loading={false}
-            onClick={handleSave}
-          >
-            Save Professional
-          </Button>
+          {editingProfessional ? (
+            // Edit mode: Delete and Update buttons
+            <>
+              <Button
+                disabled={false}
+                variant="destructive-secondary"
+                size="large"
+                icon={null}
+                iconRight={null}
+                loading={false}
+                onClick={handleDelete}
+              >
+                Delete Professional
+              </Button>
+              <Button
+                disabled={false}
+                variant="brand-primary"
+                size="large"
+                icon={null}
+                iconRight={null}
+                loading={false}
+                onClick={handleSave}
+              >
+                Update Professional
+              </Button>
+            </>
+          ) : (
+            // Add mode: Clear and Save buttons
+            <>
+              <Button
+                disabled={false}
+                variant="destructive-tertiary"
+                size="large"
+                icon={null}
+                iconRight={null}
+                loading={false}
+                onClick={handleClearAll}
+              >
+                Clear all
+              </Button>
+              <Button
+                disabled={false}
+                variant="brand-primary"
+                size="large"
+                icon={null}
+                iconRight={null}
+                loading={false}
+                onClick={handleSave}
+              >
+                Save Professional
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </DialogLayout>

@@ -135,7 +135,7 @@ const AccordionRoot = React.forwardRef<HTMLDivElement, AccordionRootProps>(
                 </div>
               ) : null
             }
-            variant={open ? "default" : undefined}
+            variant={variant}
           >
             <div className="flex flex-col items-start gap-2">
               <span className="text-body-medium font-body-medium text-default-font">

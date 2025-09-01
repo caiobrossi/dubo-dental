@@ -21,6 +21,7 @@ interface MemberBannerRootProps extends React.HTMLAttributes<HTMLDivElement> {
   contactButtons?: React.ReactNode;
   editProfile?: React.ReactNode;
   navigation?: React.ReactNode;
+  avatarUrl?: string;
   className?: string;
 }
 
@@ -37,6 +38,7 @@ const MemberBannerRoot = React.forwardRef<
     contactButtons,
     editProfile,
     navigation,
+    avatarUrl,
     className,
     ...otherProps
   }: MemberBannerRootProps,
@@ -55,9 +57,9 @@ const MemberBannerRoot = React.forwardRef<
         <div className="flex items-start gap-4">
           <Avatar
             size="x-large"
-            image="https://res.cloudinary.com/subframe/image/upload/v1711417514/shared/ubsk7cs5hnnaj798efej.jpg"
+            image={avatarUrl || undefined}
           >
-            A
+            {name ? String(name).charAt(0)?.toUpperCase() : 'P'}
           </Avatar>
           <div className="flex flex-col items-start gap-3">
             <div className="flex w-full items-start gap-8">

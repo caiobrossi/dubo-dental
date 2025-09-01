@@ -12,6 +12,7 @@ import { FeatherChevronDown, FeatherPlus, FeatherSearch, FeatherX } from "@subfr
 import { IconButton } from "@/ui/components/IconButton";
 import * as SubframeCore from "@subframe/core";
 import { DropdownMenu } from "@/ui/components/DropdownMenu";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // New TanStack Table imports
 import { InfiniteScrollTable } from "./components/InfiniteScrollTable";
@@ -206,14 +207,16 @@ function LabsOrder() {
         
         {/* Table */}
         <div className="flex w-full grow shrink-0 basis-0 flex-col items-stretch gap-2 rounded-lg bg-default-background px-8 pb-6 overflow-auto">
-          <InfiniteScrollTable
-            professionals={professionals}
-            onEditOrder={handleEditOrder}
-            onDeleteOrder={handleDeleteOrder}
-            onViewDetails={handleViewDetails}
-            professionalFilter={selectedProfessional}
-            searchFilter={globalFilter}
-          />
+          <ErrorBoundary>
+            <InfiniteScrollTable
+              professionals={professionals}
+              onEditOrder={handleEditOrder}
+              onDeleteOrder={handleDeleteOrder}
+              onViewDetails={handleViewDetails}
+              professionalFilter={selectedProfessional}
+              searchFilter={globalFilter}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 

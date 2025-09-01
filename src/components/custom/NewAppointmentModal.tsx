@@ -80,7 +80,7 @@ function NewAppointmentModal({
         setFormData({
           patient_id: editingAppointment.patient_id || "",
           professional_id: editingAppointment.professional_id || "",
-          room: editingAppointment.room || "",
+          room: "", // Appointment type doesn't have a room field
           procedure_type: editingAppointment.appointment_type || "first_time",
           duration_minutes: duration.toString(),
           appointment_date: editingAppointment.appointment_date,
@@ -790,7 +790,7 @@ function NewAppointmentModal({
               <Button
                 className="h-10 flex-1"
                 disabled={loading}
-                variant="brand-destructive"
+                variant="destructive-primary"
                 size="large"
                 onClick={handleDeleteBlockedTime}
               >

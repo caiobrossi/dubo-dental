@@ -32,6 +32,7 @@ export function SortableHeader({ column, children, table }: SortableHeaderProps)
         isSorted === 'asc' ? 'ascending' : 
         isSorted === 'desc' ? 'descending' : 'none'
       }
+      aria-label={`Sort by ${children}, currently ${isSorted === 'asc' ? 'sorted ascending' : isSorted === 'desc' ? 'sorted descending' : 'not sorted'}`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();

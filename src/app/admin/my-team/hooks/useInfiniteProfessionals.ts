@@ -1,28 +1,26 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase, Patient } from "@/lib/supabase";
+import { supabase, Professional } from "@/lib/supabase";
 import { SortingState } from '@tanstack/react-table';
 
-interface UseInfinitePatientsOptions {
+interface UseInfiniteProfessionalsOptions {
   pageSize?: number;
   sorting?: SortingState;
   globalFilter?: string;
-  professionalFilter?: string;
 }
 
-interface PatientsPage {
-  data: Patient[];
+interface ProfessionalsPage {
+  data: Professional[];
   nextCursor: number | null;
   hasMore: boolean;
 }
 
-export function useInfinitePatients({
+export function useInfiniteProfessionals({
   pageSize = 50,
   sorting = [],
   globalFilter = '',
-  professionalFilter = 'all'
-}: UseInfinitePatientsOptions = {}) {
+}: UseInfiniteProfessionalsOptions = {}) {
   // State
-  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [allProfessionals, setAllProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
@@ -34,30 +32,24 @@ export function useInfinitePatients({
     JSON.stringify({
       sorting,
       globalFilter,
-      professionalFilter,
       pageSize
     }), 
-    [sorting, globalFilter, professionalFilter, pageSize]
+    [sorting, globalFilter, pageSize]
   );
 
   // Fetch a specific page
-  const fetchPage = useCallback(async (page: number): Promise<PatientsPage> => {
+  const fetchPage = useCallback(async (page: number): Promise<ProfessionalsPage> => {
     try {
       // Build query
       let query = supabase
-        .from('patients')
+        .from('professionals')
         .select('*', { count: 'exact' });
-
-      // Apply professional filter
-      if (professionalFilter && professionalFilter !== 'all') {
-        query = query.eq('professional_id', professionalFilter);
-      }
 
       // Apply global search filter
       if (globalFilter.trim()) {
         const searchTerm = globalFilter.toLowerCase().trim();
-        // Search in multiple text fields using or()
-        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,mobile.ilike.%${searchTerm}%,alternative_phone.ilike.%${searchTerm}%`);
+        // Search in multiple text fields
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,mobile.ilike.%${searchTerm}%,specialty.ilike.%${searchTerm}%`);
       }
 
       // Apply sorting
@@ -94,26 +86,26 @@ export function useInfinitePatients({
         hasMore,
       };
     } catch (error) {
-      console.error('Error fetching patients page:', error);
+      console.error('Error fetching professionals page:', error);
       throw error;
     }
-  }, [sorting, globalFilter, professionalFilter, pageSize]);
+  }, [sorting, globalFilter, pageSize]);
 
   // Reset and fetch first page when filters change
   const resetAndFetch = useCallback(async () => {
     try {
       setError(null);
       setInitialLoading(true);
-      setAllPatients([]);
+      setAllProfessionals([]);
       setCurrentPage(0);
       setHasMore(true);
 
       const firstPage = await fetchPage(0);
-      setAllPatients(firstPage.data);
+      setAllProfessionals(firstPage.data);
       setHasMore(firstPage.hasMore);
       setCurrentPage(1);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to fetch patients');
+      setError(error instanceof Error ? error.message : 'Failed to fetch professionals');
     } finally {
       setInitialLoading(false);
     }
@@ -130,16 +122,16 @@ export function useInfinitePatients({
       const nextPage = await fetchPage(currentPage);
       
       // Append new data (avoiding duplicates)
-      setAllPatients(prev => {
+      setAllProfessionals(prev => {
         const existingIds = new Set(prev.map(p => p.id));
-        const newPatients = nextPage.data.filter(p => !existingIds.has(p.id));
-        return [...prev, ...newPatients];
+        const newProfessionals = nextPage.data.filter(p => !existingIds.has(p.id));
+        return [...prev, ...newProfessionals];
       });
 
       setHasMore(nextPage.hasMore);
       setCurrentPage(prev => prev + 1);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to load more patients');
+      setError(error instanceof Error ? error.message : 'Failed to load more professionals');
     } finally {
       setLoading(false);
     }
@@ -151,7 +143,7 @@ export function useInfinitePatients({
   }, [queryKey]);
 
   return {
-    data: allPatients,
+    data: allProfessionals,
     loading,
     initialLoading,
     hasMore,
@@ -159,7 +151,7 @@ export function useInfinitePatients({
     loadMore,
     refetch: resetAndFetch,
     // Statistics
-    totalLoaded: allPatients.length,
+    totalLoaded: allProfessionals.length,
     currentPage,
   };
 }
@@ -167,11 +159,12 @@ export function useInfinitePatients({
 // Helper function to map column IDs to Supabase fields
 function mapColumnToSupabaseField(columnId: string): string | null {
   const mapping: Record<string, string> = {
-    patient: 'name',
+    professional: 'name',
     name: 'name',
-    dateOfBirth: 'date_of_birth',
-    lastVisit: 'last_visit',
-    professional: 'professional_id',
+    email: 'email',
+    phone: 'mobile',
+    specialty: 'specialty',
+    role: 'role',
     createdAt: 'created_at',
   };
 

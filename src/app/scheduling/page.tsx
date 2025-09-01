@@ -1,7 +1,7 @@
-// Re-export the refactored scheduling page component
+import { Suspense } from "react";
 import SchedulingPage from "./components/SchedulingPage";
 
-// This file now simply exports the refactored component
+// This file now simply exports the refactored component wrapped in Suspense
 // All the logic has been moved to ./components/SchedulingPage.tsx
 // following modern React patterns and best practices
 
@@ -32,7 +32,11 @@ import SchedulingPage from "./components/SchedulingPage";
  */
 
 function SchedulingPageWrapper() {
-  return <SchedulingPage />;
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <SchedulingPage />
+    </Suspense>
+  );
 }
 
 export default SchedulingPageWrapper;

@@ -332,7 +332,7 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
 
   return (
     <DialogLayout open={open} onOpenChange={onOpenChange}>
-      <div className="flex w-144 flex-col items-start bg-page-bg mobile:h-auto mobile:w-96 max-h-[95vh] overflow-y-auto">
+      <div className="flex w-144 flex-col items-start bg-default-background mobile:h-auto mobile:w-96 max-h-[95vh] overflow-y-auto">
         <div className="flex w-full grow shrink-0 basis-0 items-center justify-between border-b border-solid border-neutral-border bg-white/50 backdrop-blur px-4 py-4">
           <span className="grow shrink-0 basis-0 text-heading-2 font-heading-2 text-default-font">
             {editingGroup ? 'Edit Group Information' : 'Create group'}
@@ -343,7 +343,7 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
             onClick={() => onOpenChange(false)}
           />
         </div>
-        <form onSubmit={handleSubmit} className="flex w-full flex-col items-start gap-8 px-4 py-4 mobile:flex-col mobile:flex-nowrap mobile:gap-6">
+        <form id="group-form" onSubmit={handleSubmit} className="flex w-full flex-col items-start gap-8 px-4 py-4 mobile:flex-col mobile:flex-nowrap mobile:gap-6">
           <div className="flex w-full grow shrink-0 basis-0 flex-col items-start">
             <div className="flex w-full grow shrink-0 basis-0 items-center justify-between py-2">
               <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
@@ -351,6 +351,7 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
               </span>
               <TextField
                 className="h-10 grow shrink-0 basis-0"
+                variant="filled"
                 disabled={loading}
                 error={false}
                 label=""
@@ -376,8 +377,8 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
                   <div
                     ref={triggerRef}
                     onClick={handleDropdownToggle}
-                    className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-sm cursor-pointer flex items-center justify-between bg-white hover:border-gray-400 ${
-                      dropdownOpen ? 'border-blue-500 ring-1 ring-blue-500' : ''
+                    className={`w-full h-10 px-3 py-2 rounded-md cursor-pointer flex items-center justify-between bg-neutral-100 hover:bg-neutral-200 transition-colors ${
+                      dropdownOpen ? 'bg-white shadow-sm ring-1 ring-brand-600' : ''
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -406,6 +407,7 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
                       <div className="p-3 border-b border-gray-100">
                         <TextField
                           className="h-8 w-full"
+                          variant="filled"
                           disabled={loadingPatients}
                           error={false}
                           label=""
@@ -541,39 +543,40 @@ function AddNewGroupModal({ open, onOpenChange, onGroupAdded, editingGroup }: Ad
             </div>
 
           </div>
-          
-          {/* Buttons section - same row */}
-          <div className="flex w-full gap-4 bg-white/50 backdrop-blur px-4 py-4 border-t border-solid border-neutral-border">
-            {editingGroup && (
-              <Button
-                className="h-10 flex-1"
-                disabled={loading}
-                variant="destructive-secondary"
-                size="large"
-                icon={<FeatherTrash />}
-                iconRight={null}
-                loading={false}
-                type="button"
-                onClick={handleDeleteGroup}
-              >
-                Delete group
-              </Button>
-            )}
-            
-            <Button
-              className={`h-10 ${editingGroup ? 'flex-1' : 'w-full'}`}
-              disabled={loading}
-              variant="brand-primary"
-              size="large"
-              icon={null}
-              iconRight={null}
-              loading={loading}
-              type="submit"
-            >
-              {loading ? (editingGroup ? "Updating..." : "Creating...") : (editingGroup ? "Update group" : "Create new group")}
-            </Button>
-          </div>
         </form>
+        
+        {/* Modal Footer - outside of form */}
+        <div className="flex w-full gap-4 bg-white px-6 py-4 border-t border-solid border-neutral-border">
+          {editingGroup && (
+            <Button
+              className="h-10 flex-1"
+              disabled={loading}
+              variant="destructive-secondary"
+              size="large"
+              icon={<FeatherTrash />}
+              iconRight={null}
+              loading={false}
+              type="button"
+              onClick={handleDeleteGroup}
+            >
+              Delete group
+            </Button>
+          )}
+          
+          <Button
+            className={`h-10 ${editingGroup ? 'flex-1' : 'w-full'}`}
+            disabled={loading}
+            variant="brand-primary"
+            size="large"
+            icon={null}
+            iconRight={null}
+            loading={loading}
+            type="submit"
+            form="group-form"
+          >
+            {loading ? (editingGroup ? "Updating..." : "Creating...") : (editingGroup ? "Update group" : "Create new group")}
+          </Button>
+        </div>
       </div>
 
     </DialogLayout>

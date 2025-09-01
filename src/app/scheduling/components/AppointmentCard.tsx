@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Appointment, AppointmentLayout, LAYOUT_CONSTANTS, timeUtils, AppointmentStatus } from '../hooks/useScheduler';
+import { Appointment, AppointmentLayout, LAYOUT_CONSTANTS, timeUtils } from '../hooks/useScheduler';
+import { AppointmentStatus } from '../types';
 
 // Configuração avançada de cores e estilos para cada status
 const getStatusStyles = (status: AppointmentStatus) => {

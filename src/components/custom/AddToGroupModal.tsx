@@ -14,9 +14,10 @@ interface AddToGroupModalProps {
   onOpenChange: (open: boolean) => void;
   patient: Patient | null;
   onPatientUpdated?: () => void;
+  showToast?: boolean;
 }
 
-function AddToGroupModal({ open, onOpenChange, patient, onPatientUpdated }: AddToGroupModalProps) {
+function AddToGroupModal({ open, onOpenChange, patient, onPatientUpdated, showToast = true }: AddToGroupModalProps) {
   const [groups, setGroups] = useState<PatientGroup[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,14 +43,34 @@ function AddToGroupModal({ open, onOpenChange, patient, onPatientUpdated }: AddT
   useEffect(() => {
     if (open) {
       loadGroups();
-      // Set current patient's group if they have one
+      loadPatientGroups();
+    }
+  }, [open, patient]);
+
+  // Load patient's current group memberships
+  const loadPatientGroups = async () => {
+    if (!patient?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('patient_group_memberships')
+        .select('group_id')
+        .eq('patient_id', patient.id);
+
+      if (error) throw error;
+      
+      const groupIds = data?.map(membership => membership.group_id) || [];
+      setSelectedGroups(groupIds);
+    } catch (error) {
+      console.error('Error loading patient groups:', error);
+      // Fallback to old single group system
       if (patient?.group_id) {
         setSelectedGroups([patient.group_id]);
       } else {
         setSelectedGroups([]);
       }
     }
-  }, [open, patient]);
+  };
 
   const handleGroupToggle = (groupId: string) => {
     setSelectedGroups(prev => {
@@ -67,29 +88,64 @@ function AddToGroupModal({ open, onOpenChange, patient, onPatientUpdated }: AddT
     setLoading(true);
     
     try {
-      // For now, we'll only support single group assignment
-      // Update patient with the first selected group (or null if none selected)
-      const groupId = selectedGroups.length > 0 ? selectedGroups[0] : null;
-      
-      const { error } = await supabase
+      // First, remove all existing memberships for this patient
+      const { error: deleteError } = await supabase
+        .from('patient_group_memberships')
+        .delete()
+        .eq('patient_id', patient.id);
+
+      if (deleteError) throw deleteError;
+
+      // Then, add new memberships for selected groups
+      if (selectedGroups.length > 0) {
+        const memberships = selectedGroups.map(groupId => ({
+          patient_id: patient.id,
+          group_id: groupId
+        }));
+
+        const { error: insertError } = await supabase
+          .from('patient_group_memberships')
+          .insert(memberships);
+
+        if (insertError) throw insertError;
+      }
+
+      // Also update the legacy group_id for backwards compatibility (use first selected group)
+      const legacyGroupId = selectedGroups.length > 0 ? selectedGroups[0] : null;
+      const { error: legacyError } = await supabase
         .from('patients')
-        .update({ group_id: groupId })
+        .update({ group_id: legacyGroupId })
         .eq('id', patient.id);
 
-      if (error) throw error;
+      if (legacyError) throw legacyError;
 
-      const groupName = groupId ? groups.find(g => g.id === groupId)?.name : "no group";
-      showSuccess(
-        groupId ? "Joined group successfully" : "Removed from group", 
-        `${patient.name} has ${groupId ? `joined ${groupName}` : "been removed from all groups"}.`
-      );
+      // Show success message (only if showToast is true)
+      if (showToast) {
+        if (selectedGroups.length > 0) {
+          const groupNames = selectedGroups
+            .map(groupId => groups.find(g => g.id === groupId)?.name)
+            .filter(Boolean)
+            .join(', ');
+          showSuccess(
+            "Joined groups successfully", 
+            `${patient.name} has joined: ${groupNames}`
+          );
+        } else {
+          showSuccess(
+            "Removed from all groups", 
+            `${patient.name} has been removed from all groups.`
+          );
+        }
+      }
       
       onPatientUpdated?.();
       onOpenChange(false);
       
     } catch (error) {
-      console.error('Error updating patient group:', error);
-      showError("Error", "Failed to update patient group");
+      console.error('Error updating patient groups:', error);
+      if (showToast) {
+        showError("Error", "Failed to update patient groups");
+      }
     } finally {
       setLoading(false);
     }
@@ -200,7 +256,7 @@ function AddToGroupModal({ open, onOpenChange, patient, onPatientUpdated }: AddT
               loading={loading}
               onClick={handleSave}
             >
-              {loading ? "Joining..." : "Join Group"}
+              {loading ? "Saving..." : "Save Groups"}
             </Button>
           </div>
         </div>

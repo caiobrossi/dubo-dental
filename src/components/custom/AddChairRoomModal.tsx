@@ -361,8 +361,8 @@ function AddChairRoomModal({ open, onOpenChange, onChairRoomAdded, editingChairR
                   placeholder="Select type"
                   helpText=""
                   value={formData.roomType}
-                  onValueChange={(value: 'chair' | 'room') => 
-                    setFormData(prev => ({ ...prev, roomType: value }))
+                  onValueChange={(value) => 
+                    setFormData(prev => ({ ...prev, roomType: value as 'chair' | 'room' }))
                   }
                 >
                   <Select.Item value="chair">Chair</Select.Item>

@@ -253,7 +253,12 @@ function ChairsAndRooms() {
             >
               My team
             </SegmentControl.Item>
-            <SegmentControl.Item active={false}>Schedule shifts</SegmentControl.Item>
+            <SegmentControl.Item 
+              active={false}
+              onClick={() => router.push('/admin/schedule-shifts')}
+            >
+              Schedule shifts
+            </SegmentControl.Item>
             <SegmentControl.Item active={false}>Team payment</SegmentControl.Item>
             <SegmentControl.Item active={false}>Finance</SegmentControl.Item>
           </SegmentControl>

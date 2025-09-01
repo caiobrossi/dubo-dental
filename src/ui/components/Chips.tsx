@@ -50,7 +50,7 @@ const ChipsRoot = React.forwardRef<HTMLDivElement, ChipsRootProps>(
         ref={ref}
         {...otherProps}
       >
-        <null
+        <span
           className={SubframeUtils.twClassNames(
             "font-['Urbanist'] text-[18px] font-[600] leading-[20px] text-brand-700",
             {

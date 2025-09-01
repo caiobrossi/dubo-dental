@@ -321,48 +321,61 @@ function PatientGroups() {
                 <span>{groups.length === 0 ? 'No groups found. Click "Create new group" to create your first group.' : 'No groups match your search.'}</span>
               </div>
             ) : (
-              // Dynamic groups
-              filteredGroups.map((group) => (
-                <PatientGroupCard
-                  key={group.id}
-                  title={group.name}
-                  patientCount={`${group.patient_count || 0} ${(group.patient_count || 0) === 1 ? 'patient' : 'patients'}`}
-                  onClick={() => handleGroupClick(group.name)}
-                  groupColor={group.group_color as any}
-                  groupIcon={group.group_icon as any}
-                  menuActions={
-                    <DropdownMenu>
-                      <DropdownMenu.DropdownItem 
-                        icon={<FeatherEdit2 />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditGroup(group);
-                        }}
-                      >
-                        Edit group
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem 
-                        icon={<FeatherCopy />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDuplicateGroup(group);
-                        }}
-                      >
-                        Duplicate group
-                      </DropdownMenu.DropdownItem>
-                      <DropdownMenu.DropdownItem 
-                        icon={<FeatherTrash />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteGroup(group);
-                        }}
-                      >
-                        Delete
-                      </DropdownMenu.DropdownItem>
-                    </DropdownMenu>
-                  }
-                />
-              ))
+              <>
+                {/* Dynamic groups */}
+                {filteredGroups.map((group) => (
+                  <PatientGroupCard
+                    key={group.id}
+                    title={group.name}
+                    patientCount={`${group.patient_count || 0} ${(group.patient_count || 0) === 1 ? 'patient' : 'patients'}`}
+                    onClick={() => handleGroupClick(group.name)}
+                    groupColor={group.group_color as any}
+                    groupIcon={group.group_icon as any}
+                    menuActions={
+                      <DropdownMenu>
+                        <DropdownMenu.DropdownItem 
+                          icon={<FeatherEdit2 />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditGroup(group);
+                          }}
+                        >
+                          Edit group
+                        </DropdownMenu.DropdownItem>
+                        <DropdownMenu.DropdownItem 
+                          icon={<FeatherCopy />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDuplicateGroup(group);
+                          }}
+                        >
+                          Duplicate group
+                        </DropdownMenu.DropdownItem>
+                        <DropdownMenu.DropdownItem 
+                          icon={<FeatherTrash />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteGroup(group);
+                          }}
+                        >
+                          Delete
+                        </DropdownMenu.DropdownItem>
+                      </DropdownMenu>
+                    }
+                  />
+                ))}
+                
+                {/* Add New Group Card */}
+                <div 
+                  className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-neutral-300 bg-neutral-50 p-4 hover:border-brand-400 hover:bg-brand-50 transition-all cursor-pointer min-h-[140px]"
+                  onClick={() => setGroupModalOpen(true)}
+                >
+                  <FeatherPlus className="text-2xl text-neutral-400 mb-2" />
+                  <span className="text-body-medium font-body-medium text-neutral-600 text-center">
+                    Create New Group
+                  </span>
+                </div>
+              </>
             )}
           </div>
         </div>

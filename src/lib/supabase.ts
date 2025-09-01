@@ -39,6 +39,7 @@ export interface Professional {
   id: string
   name: string
   cro_id?: string
+  image?: string
   avatar_url?: string
   date_of_birth?: string
   gender?: 'male' | 'female' | 'rather_not_say'
@@ -53,6 +54,22 @@ export interface Professional {
   role?: string
   schedule_type?: string
   start_date?: string
+  // Individual working hours fields
+  monday_start?: string
+  monday_end?: string
+  tuesday_start?: string
+  tuesday_end?: string
+  wednesday_start?: string
+  wednesday_end?: string
+  thursday_start?: string
+  thursday_end?: string
+  friday_start?: string
+  friday_end?: string
+  saturday_start?: string
+  saturday_end?: string
+  sunday_start?: string
+  sunday_end?: string
+  // Legacy working hours object (for backward compatibility)
   working_hours?: {
     [key: string]: {
       enabled: boolean
@@ -139,7 +156,7 @@ export interface Appointment {
   end_time: string
   duration_minutes?: number
   appointment_type: string
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show'
+  status: 'scheduled' | 'confirmed' | 'in-progress' | 'complete' | 'cancelled' | 'no-show' | 'waiting'
   notes?: string
   color?: string
   created_at?: string

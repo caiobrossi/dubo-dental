@@ -125,14 +125,10 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
         setAvatarPreview(editingPatient.avatar_url);
       }
       
-      // Parse additional phones if they exist
-      if (editingPatient.additional_phones) {
-        try {
-          const phones = JSON.parse(editingPatient.additional_phones);
-          setAlternativePhones(Array.isArray(phones) ? phones : [""]);
-        } catch (e) {
-          setAlternativePhones([""]);
-        }
+      // Handle alternative phones
+      // The Patient type only has 'alternative_phone' as a single string, not 'additional_phones'
+      if (editingPatient.alternative_phone) {
+        setAlternativePhones([editingPatient.alternative_phone]);
       } else {
         setAlternativePhones([""]);
       }
@@ -467,11 +463,11 @@ function AddPatientModal({ open, onOpenChange, onPatientAdded, editingPatient }:
                     value={gender}
                     onValueChange={(value: string) => setGender(value)}
                   >
-                    <RadioGroup.Option label="Male" value="c9384fd6" />
-                    <RadioGroup.Option label="Female" value="d8587aff" />
+                    <RadioGroup.Option label="Male" value="male" />
+                    <RadioGroup.Option label="Female" value="female" />
                     <RadioGroup.Option
                       label="Rather not say"
-                      value="56d96e87"
+                      value="rather_not_say"
                     />
                   </RadioGroup>
                 </div>
