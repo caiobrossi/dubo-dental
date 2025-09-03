@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { Appointment, BlockedTime, ViewMode, DateRange } from '../types';
 import { getDateRange } from '../utils/dateUtils';
 

@@ -16,7 +16,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/ui/components/Button';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { useSettings } from '@/contexts/SettingsContext';
 
 interface EnhancedCalendarProps {

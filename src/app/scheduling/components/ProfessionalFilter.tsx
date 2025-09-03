@@ -3,7 +3,7 @@ import { Button } from '@/ui/components/Button';
 import { DropdownMenu } from '@/ui/components/DropdownMenu';
 import { FeatherChevronDown } from '@subframe/core';
 import * as SubframeCore from '@subframe/core';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 
 interface Professional {
   id: string;

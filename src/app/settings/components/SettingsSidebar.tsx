@@ -71,7 +71,7 @@ export const SettingsSidebar: React.FC = () => {
       label: "Service list and Insurance", 
       href: "/settings/insurance",
       icon2: <FeatherHospital />, 
-      available: false 
+      available: true 
     },
     { 
       id: "medication", 

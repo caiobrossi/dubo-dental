@@ -159,7 +159,7 @@ function GeneralSettingsPage() {
               Menu layout
             </span>
             <span className="text-body-medium font-body-medium text-subtext-color text-xs lg:text-sm">
-              Set default navigation layout - compact keeps sidebar collapsed, roomy keeps it expanded
+              Compact keeps sidebar collapsed, roomy keeps it expanded
             </span>
           </div>
           <RadioCardGroup 

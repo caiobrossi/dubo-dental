@@ -1,0 +1,1047 @@
+"use client";
+
+import React, { useState, useCallback, useMemo } from "react";
+import { useRouter } from 'next/navigation';
+import { Button } from "@/ui/components/Button";
+import { ChatChannelsMenu } from "@/ui/components/ChatChannelsMenu";
+import { DropdownMenu } from "@/ui/components/DropdownMenu";
+import { IconButton } from "@/ui/components/IconButton";
+import { Select } from "@/ui/components/Select";
+import { Switch } from "@/ui/components/Switch";
+import { TextField } from "@/ui/components/TextField";
+import { FeatherArrowLeft } from "@subframe/core";
+import { FeatherCopy } from "@subframe/core";
+import { FeatherDownload } from "@subframe/core";
+import { FeatherFolderUp } from "@subframe/core";
+import { FeatherMoreHorizontal } from "@subframe/core";
+import { FeatherPlus } from "@subframe/core";
+import { FeatherSettings2 } from "@subframe/core";
+import { FeatherTrash } from "@subframe/core";
+import { FeatherUsers } from "@subframe/core";
+import * as SubframeCore from "@subframe/core";
+import { useProcedures } from '@/hooks/useProcedures';
+import { useInsurance } from '@/hooks/useInsurance';
+import { PROCEDURE_CATEGORIES, TIME_OPTIONS, Procedure } from '@/types/procedures';
+
+// Types for local state management
+interface ProcedureEdits {
+  [procedureId: string]: Partial<Procedure>;
+}
+
+interface NewProcedure {
+  name: string;
+  category: string;
+  price: number;
+  estimated_time: string;
+  is_active: boolean;
+}
+
+const INITIAL_NEW_PROCEDURE: NewProcedure = {
+  name: '',
+  category: 'Others',
+  price: 0,
+  estimated_time: '30min',
+  is_active: true
+};
+
+export default function PrivatePlanDetailedPage() {
+  const router = useRouter();
+
+  // Local state for UI interactions
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [editingProcedures, setEditingProcedures] = useState<ProcedureEdits>({});
+  const [newProcedure, setNewProcedure] = useState<NewProcedure>(INITIAL_NEW_PROCEDURE);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Get insurance plan data
+  const { insurancePlans } = useInsurance();
+  const privatePlan = insurancePlans.find(plan => plan.type === 'private');
+  
+  // For now, use the temporary hardcoded ID until the useInsurance hook is fixed
+  // TODO: Remove this once useInsurance hook properly loads data
+  const privatePlanId = privatePlan?.id || '0347433a-73cb-4933-83ae-16cfcd989fca';
+
+  // Use the procedures hook
+  const { 
+    procedures, 
+    loading, 
+    error, 
+    updateProcedure,
+    createProcedure,
+    deleteProcedure,
+    duplicateProcedure,
+    clearError
+  } = useProcedures(privatePlanId);
+
+  // Filter procedures by selected category
+  const filteredProcedures = useMemo(() => {
+    return selectedCategory === 'All' 
+      ? procedures 
+      : procedures.filter(proc => proc.category === selectedCategory);
+  }, [procedures, selectedCategory]);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    return Object.keys(editingProcedures).length > 0;
+  }, [editingProcedures]);
+
+  // Price formatting utilities
+  const formatPrice = useCallback((price: number): string => {
+    return price.toFixed(2);
+  }, []);
+
+  const parsePrice = useCallback((value: string): number => {
+    const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
+    return isNaN(parsed) ? 0 : parsed;
+  }, []);
+
+  // Get procedure value (either from edits or original data)
+  const getProcedureValue = useCallback((procedureId: string, field: keyof Procedure, defaultValue: any) => {
+    const edits = editingProcedures[procedureId];
+    if (edits && field in edits) {
+      return edits[field];
+    }
+    const procedure = procedures.find(p => p.id === procedureId);
+    return procedure ? procedure[field] : defaultValue;
+  }, [editingProcedures, procedures]);
+
+  // Handle procedure field changes
+  const handleProcedureChange = useCallback((procedureId: string, field: keyof Procedure, value: any) => {
+    setEditingProcedures(prev => ({
+      ...prev,
+      [procedureId]: {
+        ...prev[procedureId],
+        [field]: value
+      }
+    }));
+  }, []);
+
+  // Save all changes
+  const handleSaveChanges = useCallback(async () => {
+    if (!hasUnsavedChanges) return;
+
+    setIsSaving(true);
+    try {
+      // Save all edited procedures
+      const updatePromises = Object.entries(editingProcedures).map(([id, changes]) =>
+        updateProcedure(id, changes)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const allSuccessful = results.every(result => result);
+
+      if (allSuccessful) {
+        // Clear editing state
+        setEditingProcedures({});
+        alert('Changes saved successfully!');
+      } else {
+        alert('Some changes failed to save. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [hasUnsavedChanges, editingProcedures, updateProcedure]);
+
+  // Add new procedure
+  const handleAddProcedure = useCallback(async () => {
+    if (!newProcedure.name.trim()) {
+      alert('Please enter a procedure name');
+      return;
+    }
+    
+    if (!privatePlanId) {
+      alert('Private plan not found');
+      return;
+    }
+
+    try {
+      const result = await createProcedure({
+        name: newProcedure.name.trim(),
+        category: newProcedure.category,
+        price: newProcedure.price,
+        estimated_time: newProcedure.estimated_time,
+        is_active: newProcedure.is_active,
+        insurance_plan_id: privatePlanId
+      });
+
+      if (result) {
+        // Reset form
+        setNewProcedure(INITIAL_NEW_PROCEDURE);
+        alert('Procedure added successfully!');
+      } else {
+        alert('Failed to add procedure. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error adding procedure:', error);
+      alert('Failed to add procedure. Please try again.');
+    }
+  }, [newProcedure, privatePlanId, createProcedure]);
+
+  // Handle navigation back
+  const handleBack = useCallback(() => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
+      if (!confirmed) return;
+    }
+    router.push('/settings/insurance');
+  }, [hasUnsavedChanges, router]);
+
+  // Handle procedure duplication
+  const handleDuplicate = useCallback(async (procedureId: string) => {
+    try {
+      const result = await duplicateProcedure(procedureId);
+      if (result) {
+        alert('Procedure duplicated successfully!');
+      } else {
+        alert('Failed to duplicate procedure. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error duplicating procedure:', error);
+      alert('Failed to duplicate procedure. Please try again.');
+    }
+  }, [duplicateProcedure]);
+
+  // Handle procedure deletion
+  const handleDelete = useCallback(async (procedureId: string) => {
+    const confirmed = window.confirm('Are you sure you want to delete this procedure?');
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteProcedure(procedureId);
+      if (result) {
+        // Remove from editing state if it was being edited
+        setEditingProcedures(prev => {
+          const newEdits = { ...prev };
+          delete newEdits[procedureId];
+          return newEdits;
+        });
+        alert('Procedure deleted successfully!');
+      } else {
+        alert('Failed to delete procedure. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting procedure:', error);
+      alert('Failed to delete procedure. Please try again.');
+    }
+  }, [deleteProcedure]);
+
+  // Handle export functionality (placeholder)
+  const handleExport = useCallback(() => {
+    alert('Export functionality will be implemented soon');
+  }, []);
+
+  // Handle bulk upload functionality (placeholder)
+  const handleBulkUpload = useCallback(() => {
+    alert('Bulk upload functionality will be implemented soon');
+  }, []);
+
+  // Clear error when user interacts
+  const handleClearError = useCallback(() => {
+    clearError();
+  }, [clearError]);
+
+  return (
+    <div className="fixed inset-0 flex h-screen w-screen flex-col bg-default-background overflow-hidden z-50">
+      {/* Header - Responsive */}
+      <div className="flex h-16 w-full flex-none items-center justify-between border-b border-solid border-neutral-border bg-new-white-50 px-4 sm:px-6 lg:px-8 py-2">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <IconButton
+            disabled={false}
+            variant="neutral-secondary"
+            size="medium"
+            icon={<FeatherArrowLeft />}
+            loading={false}
+            onClick={handleBack}
+          />
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-lg sm:text-heading-2 font-heading-2 text-default-font">
+              Private plan
+            </span>
+          </div>
+        </div>
+        <Button
+          disabled={!hasUnsavedChanges || isSaving}
+          variant="brand-primary"
+          size="large"
+          icon={null}
+          iconRight={null}
+          loading={isSaving}
+          onClick={handleSaveChanges}
+        >
+          <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save changes'}</span>
+          <span className="sm:hidden">{isSaving ? 'Saving...' : 'Save'}</span>
+        </Button>
+      </div>
+      
+      {/* Mobile Category Selector - Visible on Mobile Only */}
+      <div className="lg:hidden border-b border-neutral-border p-4 bg-white">
+        <Select
+          className="w-full"
+          variant="filled"
+          label="Category"
+          value={selectedCategory}
+          onValueChange={setSelectedCategory}
+        >
+          {PROCEDURE_CATEGORIES.map(category => (
+            <Select.Item key={category} value={category}>
+              {category}
+            </Select.Item>
+          ))}
+        </Select>
+      </div>
+      
+      {/* Main Content - Full Width Layout */}
+      <div className="flex flex-1 overflow-hidden">        
+        {/* Procedures Content Area - Full Width */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            {/* Header with responsive action buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <span className="text-xl sm:text-heading-3 font-heading-3 text-default-font">
+                {selectedCategory}
+              </span>
+              
+              {/* Action Buttons - Stack on Mobile, Inline on Desktop */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
+                {/* Mobile: Full width buttons, Desktop: Normal size */}
+                <div className="flex gap-2 sm:gap-2">
+                  <Button
+                    variant="neutral-secondary"
+                    size="medium"
+                    icon={<FeatherDownload />}
+                    onClick={handleExport}
+                    className="flex-1 sm:flex-none"
+                  >
+                    <span className="hidden sm:inline">Export as</span>
+                    <span className="sm:hidden">Export</span>
+                  </Button>
+                  <Button
+                    variant="neutral-secondary"
+                    size="medium"
+                    icon={<FeatherFolderUp />}
+                    onClick={handleBulkUpload}
+                    className="flex-1 sm:flex-none"
+                  >
+                    <span className="hidden sm:inline">Bulk upload</span>
+                    <span className="sm:hidden">Upload</span>
+                  </Button>
+                </div>
+                <Button
+                  disabled={false}
+                  size="medium"
+                  icon={<FeatherPlus />}
+                  iconRight={null}
+                  loading={false}
+                  onClick={() => {
+                    const element = document.getElementById('new-procedure-row');
+                    element?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  <span className="hidden sm:inline">Add new procedure</span>
+                  <span className="sm:hidden">Add procedure</span>
+                </Button>
+              </div>
+            </div>
+            
+            {/* Table Container - Using patients table structure */}
+            <div className="border border-neutral-200 rounded-lg bg-white overflow-hidden flex-1 flex flex-col">
+              {/* Header - Fixed header like patients table */}
+              <div className="hidden lg:block bg-neutral-50 border-b border-neutral-200 sticky top-0 z-10">
+                <div className="flex">
+                  <div className="flex-none w-16 px-4 py-3 text-left text-sm font-medium text-neutral-900 first:pl-6">
+                    Active
+                  </div>
+                  <div className="flex-[3] px-4 py-3 text-left text-sm font-medium text-neutral-900 min-w-[200px]">
+                    Procedure
+                  </div>
+                  <div className="flex-[1.5] px-4 py-3 text-left text-sm font-medium text-neutral-900 min-w-[150px]">
+                    Category
+                  </div>
+                  <div className="flex-[1] px-4 py-3 text-left text-sm font-medium text-neutral-900 min-w-[100px]">
+                    Price
+                  </div>
+                  <div className="flex-[1.5] px-4 py-3 text-left text-sm font-medium text-neutral-900 min-w-[130px]">
+                    Estimated time
+                  </div>
+                  <div className="flex-none w-20 px-4 py-3 text-left text-sm font-medium text-neutral-900 last:pr-6">
+                  </div>
+                </div>
+              </div>
+              
+              {/* Scrollable body */}
+              <div className="overflow-auto flex-1">
+                {/* New Procedure Row */}
+                <div id="new-procedure-row" className="hidden lg:flex items-center border-b border-neutral-200 bg-blue-50 hover:bg-blue-100 transition-colors">
+                  <div className="flex-none w-16 px-4 py-4 first:pl-6">
+                    <Switch
+                      checked={newProcedure.is_active}
+                      onCheckedChange={(checked) => setNewProcedure(prev => ({...prev, is_active: checked}))}
+                    />
+                  </div>
+                  <div className="flex-[3] px-4 py-4 min-w-[200px]">
+                    <TextField
+                      className="h-10 w-full"
+                      variant="filled"
+                      label=""
+                    >
+                      <TextField.Input
+                        placeholder="Enter procedure name"
+                        value={newProcedure.name}
+                        onChange={(e) => setNewProcedure(prev => ({...prev, name: e.target.value}))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleAddProcedure();
+                          }
+                        }}
+                      />
+                    </TextField>
+                  </div>
+                  <div className="flex-[1.5] px-4 py-4 min-w-[150px]">
+                    <Select
+                      className="h-auto w-full"
+                      variant="filled"
+                      value={newProcedure.category}
+                      onValueChange={(value) => setNewProcedure(prev => ({...prev, category: value}))}
+                    >
+                      {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+                        <Select.Item key={category} value={category}>
+                          {category}
+                        </Select.Item>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex-[1] px-4 py-4 min-w-[100px]">
+                    <TextField
+                      className="h-10 w-full"
+                      variant="filled"
+                      label=""
+                    >
+                      <TextField.Input
+                        placeholder="0.00"
+                        value={formatPrice(newProcedure.price)}
+                        onChange={(e) => setNewProcedure(prev => ({...prev, price: parsePrice(e.target.value)}))}
+                        onBlur={(e) => {
+                          const value = parsePrice(e.target.value);
+                          setNewProcedure(prev => ({...prev, price: value}));
+                          e.target.value = formatPrice(value);
+                        }}
+                      />
+                    </TextField>
+                  </div>
+                  <div className="flex-[1.5] px-4 py-4 min-w-[130px]">
+                    <Select
+                      className="h-auto w-full"
+                      variant="filled"
+                      value={newProcedure.estimated_time}
+                      onValueChange={(value) => setNewProcedure(prev => ({...prev, estimated_time: value}))}
+                    >
+                      {TIME_OPTIONS.map(time => (
+                        <Select.Item key={time} value={time}>
+                          {time}
+                        </Select.Item>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex-none w-20 px-4 py-4 last:pr-6">
+                    <Button
+                      disabled={!newProcedure.name.trim()}
+                      variant="brand-primary"
+                      size="small"
+                      onClick={handleAddProcedure}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Mobile New Procedure Card - Hidden on Desktop */}
+                <div className="lg:hidden w-full border-b border-solid border-neutral-border bg-blue-50 p-4">
+                  <div className="flex flex-col gap-4">
+                    {/* Header with Switch and Add Button */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={newProcedure.is_active}
+                          onCheckedChange={(checked) => setNewProcedure(prev => ({...prev, is_active: checked}))}
+                        />
+                        <span className="text-sm font-medium text-subtext-color">Active</span>
+                      </div>
+                      <Button
+                        disabled={!newProcedure.name.trim()}
+                        variant="brand-primary"
+                        size="small"
+                        onClick={handleAddProcedure}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    
+                    {/* Procedure Name - Full Width */}
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-subtext-color mb-2">New Procedure Name</label>
+                      <TextField
+                        className="h-10 w-full"
+                        variant="filled"
+                        label=""
+                      >
+                        <TextField.Input
+                          placeholder="Enter procedure name"
+                          value={newProcedure.name}
+                          onChange={(e) => setNewProcedure(prev => ({...prev, name: e.target.value}))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddProcedure();
+                            }
+                          }}
+                        />
+                      </TextField>
+                    </div>
+                    
+                    {/* Category and Price - Side by Side */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-subtext-color mb-2">Category</label>
+                        <Select
+                          className="h-auto w-full"
+                          variant="filled"
+                          value={newProcedure.category}
+                          onValueChange={(value) => setNewProcedure(prev => ({...prev, category: value}))}
+                        >
+                          {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+                            <Select.Item key={category} value={category}>
+                              {category}
+                            </Select.Item>
+                          ))}
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-subtext-color mb-2">Price</label>
+                        <TextField
+                          className="h-10 w-full"
+                          variant="filled"
+                          label=""
+                        >
+                          <TextField.Input
+                            placeholder="0.00"
+                            value={formatPrice(newProcedure.price)}
+                            onChange={(e) => setNewProcedure(prev => ({...prev, price: parsePrice(e.target.value)}))}
+                            onBlur={(e) => {
+                              const value = parsePrice(e.target.value);
+                              setNewProcedure(prev => ({...prev, price: value}));
+                              e.target.value = formatPrice(value);
+                            }}
+                          />
+                        </TextField>
+                      </div>
+                    </div>
+                    
+                    {/* Estimated Time - Full Width */}
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-subtext-color mb-2">Estimated Time</label>
+                      <Select
+                        className="h-auto w-full"
+                        variant="filled"
+                        value={newProcedure.estimated_time}
+                        onValueChange={(value) => setNewProcedure(prev => ({...prev, estimated_time: value}))}
+                      >
+                        {TIME_OPTIONS.map(time => (
+                          <Select.Item key={time} value={time}>
+                            {time}
+                          </Select.Item>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Loading State */
+                {loading && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="text-lg text-neutral-600">Loading procedures...</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Error State */}
+                {error && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="text-lg text-red-600">Error: {error}</div>
+                      <button 
+                        onClick={handleClearError}
+                        className="mt-4 px-4 py-4 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Existing Procedures */}
+                {!loading && !error && filteredProcedures.map((procedure) => (
+                  <div key={procedure.id}>
+                    {/* Desktop Row */}
+                    <div className="hidden lg:flex items-center border-b border-neutral-200 hover:bg-neutral-50 transition-colors">
+                      <div className="flex-none w-16 px-4 py-4 first:pl-6">
+                        <Switch
+                          checked={getProcedureValue(procedure.id, 'is_active', true) as boolean}
+                          onCheckedChange={(checked) => handleProcedureChange(procedure.id, 'is_active', checked)}
+                    />
+                  </div>
+                  <div className="flex-[3] px-4 py-4 min-w-[200px]">
+                    <TextField
+                      className="h-10 w-full"
+                      variant="filled"
+                      label=""
+                    >
+                      <TextField.Input
+                        placeholder="Enter procedure name"
+                        value={newProcedure.name}
+                        onChange={(e) => setNewProcedure(prev => ({...prev, name: e.target.value}))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleAddProcedure();
+                          }
+                        }}
+                      />
+                    </TextField>
+                  </div>
+                  <div className="flex-[1.5] px-4 py-4 min-w-[150px]">
+                    <Select
+                      className="h-auto w-full"
+                      variant="filled"
+                      value={newProcedure.category}
+                      onValueChange={(value) => setNewProcedure(prev => ({...prev, category: value}))}
+                    >
+                      {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+                        <Select.Item key={category} value={category}>
+                          {category}
+                        </Select.Item>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex-[1] px-4 py-4 min-w-[100px]">
+                    <TextField
+                      className="h-10 w-full"
+                      variant="filled"
+                      label=""
+                    >
+                      <TextField.Input
+                        placeholder="0.00"
+                        value={formatPrice(newProcedure.price)}
+                        onChange={(e) => setNewProcedure(prev => ({...prev, price: parsePrice(e.target.value)}))}
+                        onBlur={(e) => {
+                          const value = parsePrice(e.target.value);
+                          setNewProcedure(prev => ({...prev, price: value}));
+                          e.target.value = formatPrice(value);
+                        }}
+                      />
+                    </TextField>
+                  </div>
+                  <div className="flex-[1.5] px-4 py-4 min-w-[130px]">
+                    <Select
+                      className="h-auto w-full"
+                      variant="filled"
+                      value={newProcedure.estimated_time}
+                      onValueChange={(value) => setNewProcedure(prev => ({...prev, estimated_time: value}))}
+                    >
+                      {TIME_OPTIONS.map(time => (
+                        <Select.Item key={time} value={time}>
+                          {time}
+                        </Select.Item>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex-none w-20 px-4 py-4 last:pr-6">
+                    <Button
+                      disabled={!newProcedure.name.trim()}
+                      variant="brand-primary"
+                      size="small"
+                      onClick={handleAddProcedure}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Mobile New Procedure Card - Hidden on Desktop */}
+                <div className="lg:hidden w-full border-b border-solid border-neutral-border bg-blue-50 p-4">
+                  <div className="flex flex-col gap-4">
+                    {/* Header with Switch and Add Button */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={newProcedure.is_active}
+                          onCheckedChange={(checked) => setNewProcedure(prev => ({...prev, is_active: checked}))}
+                        />
+                        <span className="text-sm font-medium text-subtext-color">Active</span>
+                      </div>
+                      <Button
+                        disabled={!newProcedure.name.trim()}
+                        variant="brand-primary"
+                        size="small"
+                        onClick={handleAddProcedure}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    
+                    {/* Procedure Name - Full Width */}
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-subtext-color mb-2">New Procedure Name</label>
+                      <TextField
+                        className="h-10 w-full"
+                        variant="filled"
+                        label=""
+                      >
+                        <TextField.Input
+                          placeholder="Enter procedure name"
+                          value={newProcedure.name}
+                          onChange={(e) => setNewProcedure(prev => ({...prev, name: e.target.value}))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddProcedure();
+                            }
+                          }}
+                        />
+                      </TextField>
+                    </div>
+                    
+                    {/* Category and Price - Side by Side */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-subtext-color mb-2">Category</label>
+                        <Select
+                          className="h-auto w-full"
+                          variant="filled"
+                          value={newProcedure.category}
+                          onValueChange={(value) => setNewProcedure(prev => ({...prev, category: value}))}
+                        >
+                          {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+                            <Select.Item key={category} value={category}>
+                              {category}
+                            </Select.Item>
+                          ))}
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-subtext-color mb-2">Price</label>
+                        <TextField
+                          className="h-10 w-full"
+                          variant="filled"
+                          label=""
+                        >
+                          <TextField.Input
+                            placeholder="0.00"
+                            value={formatPrice(newProcedure.price)}
+                            onChange={(e) => setNewProcedure(prev => ({...prev, price: parsePrice(e.target.value)}))}
+                            onBlur={(e) => {
+                              const value = parsePrice(e.target.value);
+                              setNewProcedure(prev => ({...prev, price: value}));
+                              e.target.value = formatPrice(value);
+                            }}
+                          />
+                        </TextField>
+                      </div>
+                    </div>
+                    
+                    {/* Estimated Time - Full Width */}
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-subtext-color mb-2">Estimated Time</label>
+                      <Select
+                        className="h-auto w-full"
+                        variant="filled"
+                        value={newProcedure.estimated_time}
+                        onValueChange={(value) => setNewProcedure(prev => ({...prev, estimated_time: value}))}
+                      >
+                        {TIME_OPTIONS.map(time => (
+                          <Select.Item key={time} value={time}>
+                            {time}
+                          </Select.Item>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Existing Procedures */}
+                {!loading && !error && filteredProcedures.map((procedure) => (
+                  <div key={procedure.id}>
+                    {/* Desktop Row */}
+                    <div className="hidden lg:flex items-center border-b border-neutral-200 hover:bg-neutral-50 transition-colors">
+                      <div className="flex-none w-16 px-4 py-4 first:pl-6">
+                        <Switch
+                          checked={getProcedureValue(procedure.id, 'is_active', true) as boolean}
+                          onCheckedChange={(checked) => handleProcedureChange(procedure.id, 'is_active', checked)}
+                        />
+                      </div>
+                      <div className="flex-[3] px-4 py-4 min-w-[200px]">
+                        <TextField
+                          className="h-10 w-full"
+                          variant="filled"
+                          label=""
+                        >
+                          <TextField.Input
+                            placeholder="Procedure name"
+                            value={getProcedureValue(procedure.id, 'name', '') as string}
+                            onChange={(e) => handleProcedureChange(procedure.id, 'name', e.target.value)}
+                          />
+                        </TextField>
+                      </div>
+                      <div className="flex-[1.5] px-4 py-4 min-w-[150px]">
+                        <Select
+                          className="h-auto w-full"
+                          variant="filled"
+                          value={getProcedureValue(procedure.id, 'category', 'Others') as string}
+                          onValueChange={(value) => handleProcedureChange(procedure.id, 'category', value)}
+                        >
+                          {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+                            <Select.Item key={category} value={category}>
+                              {category}
+                            </Select.Item>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="flex-[1] px-4 py-4 min-w-[100px]">
+                        <TextField
+                          className="h-10 w-full"
+                          variant="filled"
+                          label=""
+                        >
+                          <TextField.Input
+                            placeholder="0.00"
+                            value={formatPrice(getProcedureValue(procedure.id, 'price', 0) as number)}
+                            onChange={(e) => handleProcedureChange(procedure.id, 'price', parsePrice(e.target.value))}
+                            onBlur={(e) => {
+                              const value = parsePrice(e.target.value);
+                              handleProcedureChange(procedure.id, 'price', value);
+                              e.target.value = formatPrice(value);
+                            }}
+                          />
+                        </TextField>
+                      </div>
+                      <div className="flex-[1.5] px-4 py-4 min-w-[130px]">
+                        <Select
+                          className="h-auto w-full"
+                          variant="filled"
+                          value={getProcedureValue(procedure.id, 'estimated_time', '30min') as string}
+                          onValueChange={(value) => handleProcedureChange(procedure.id, 'estimated_time', value)}
+                        >
+                          {TIME_OPTIONS.map(time => (
+                            <Select.Item key={time} value={time}>
+                              {time}
+                            </Select.Item>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="flex-none w-20 px-4 py-4 last:pr-6">
+                        <SubframeCore.DropdownMenu.Root>
+                          <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                            <IconButton
+                              size="medium"
+                              icon={<FeatherMoreHorizontal />}
+                              onClick={() => {}}
+                            />
+                          </SubframeCore.DropdownMenu.Trigger>
+                          <SubframeCore.DropdownMenu.Portal>
+                            <SubframeCore.DropdownMenu.Content
+                              side="bottom"
+                              align="end"
+                              sideOffset={8}
+                              asChild={true}
+                            >
+                              <DropdownMenu>
+                                <DropdownMenu.DropdownItem 
+                                  icon={<FeatherCopy />}
+                                  onClick={() => handleDuplicate(procedure.id)}
+                                >
+                                  Duplicate
+                                </DropdownMenu.DropdownItem>
+                                <DropdownMenu.DropdownItem 
+                                  icon={<FeatherTrash />}
+                                  onClick={() => handleDelete(procedure.id)}
+                                >
+                                  Delete
+                                </DropdownMenu.DropdownItem>
+                              </DropdownMenu>
+                            </SubframeCore.DropdownMenu.Content>
+                          </SubframeCore.DropdownMenu.Portal>
+                        </SubframeCore.DropdownMenu.Root>
+                      </div>
+                    </div>
+                  
+                  {/* Mobile Card Layout - Hidden on Desktop */}
+                  <div className="lg:hidden w-full border-b border-solid border-neutral-border bg-white p-4">
+                    <div className="flex flex-col gap-4">
+                      {/* Header with Switch and Actions */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={getProcedureValue(procedure.id, 'is_active', true) as boolean}
+                            onCheckedChange={(checked) => handleProcedureChange(procedure.id, 'is_active', checked)}
+                          />
+                          <span className="text-sm font-medium text-subtext-color">Active</span>
+                        </div>
+                        <SubframeCore.DropdownMenu.Root>
+                          <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                            <IconButton
+                              size="medium"
+                              icon={<FeatherMoreHorizontal />}
+                              onClick={() => {}}
+                            />
+                          </SubframeCore.DropdownMenu.Trigger>
+                          <SubframeCore.DropdownMenu.Portal>
+                            <SubframeCore.DropdownMenu.Content
+                              side="bottom"
+                              align="end"
+                              sideOffset={8}
+                              asChild={true}
+                            >
+                              <DropdownMenu>
+                                <DropdownMenu.DropdownItem 
+                                  icon={<FeatherCopy />}
+                                  onClick={() => handleDuplicate(procedure.id)}
+                                >
+                                  Duplicate
+                                </DropdownMenu.DropdownItem>
+                                <DropdownMenu.DropdownItem 
+                                  icon={<FeatherTrash />}
+                                  onClick={() => handleDelete(procedure.id)}
+                                >
+                                  Delete
+                                </DropdownMenu.DropdownItem>
+                              </DropdownMenu>
+                            </SubframeCore.DropdownMenu.Content>
+                          </SubframeCore.DropdownMenu.Portal>
+                        </SubframeCore.DropdownMenu.Root>
+                      </div>
+                      
+                      {/* Procedure Name - Full Width */}
+                      <div className="w-full">
+                        <label className="block text-sm font-medium text-subtext-color mb-2">Procedure Name</label>
+                        <TextField
+                          className="h-10 w-full"
+                          disabled={false}
+                          error={false}
+                          variant="filled"
+                          label=""
+                          helpText=""
+                          icon={null}
+                          iconRight={null}
+                        >
+                          <TextField.Input
+                            placeholder="Procedure name"
+                            value={getProcedureValue(procedure.id, 'name', '') as string}
+                            onChange={(e) => handleProcedureChange(procedure.id, 'name', e.target.value)}
+                          />
+                        </TextField>
+                      </div>
+                      
+                      {/* Category and Price - Side by Side */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-subtext-color mb-2">Category</label>
+                          <Select
+                            className="h-auto w-full"
+                            disabled={false}
+                            error={false}
+                            variant="filled"
+                            label=""
+                            placeholder="Select"
+                            helpText=""
+                            icon={null}
+                            value={getProcedureValue(procedure.id, 'category', 'Others') as string}
+                            onValueChange={(value) => handleProcedureChange(procedure.id, 'category', value)}
+                          >
+                            {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+                              <Select.Item key={category} value={category}>
+                                {category}
+                              </Select.Item>
+                            ))}
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-subtext-color mb-2">Price</label>
+                          <TextField
+                            className="h-10 w-full"
+                            disabled={false}
+                            error={false}
+                            variant="filled"
+                            label=""
+                            helpText=""
+                            icon={null}
+                            iconRight={null}
+                          >
+                            <TextField.Input
+                              placeholder="0.00"
+                              value={formatPrice(getProcedureValue(procedure.id, 'price', 0) as number)}
+                              onChange={(e) => handleProcedureChange(procedure.id, 'price', parsePrice(e.target.value))}
+                              onBlur={(e) => {
+                                const value = parsePrice(e.target.value);
+                                handleProcedureChange(procedure.id, 'price', value);
+                                e.target.value = formatPrice(value);
+                              }}
+                            />
+                          </TextField>
+                        </div>
+                      </div>
+                      
+                      {/* Estimated Time - Full Width */}
+                      <div className="w-full">
+                        <label className="block text-sm font-medium text-subtext-color mb-2">Estimated Time</label>
+                        <Select
+                          className="h-auto w-full"
+                          disabled={false}
+                          error={false}
+                          variant="filled"
+                          label=""
+                          placeholder="30min"
+                          helpText=""
+                          icon={null}
+                          value={getProcedureValue(procedure.id, 'estimated_time', '30min') as string}
+                          onValueChange={(value) => handleProcedureChange(procedure.id, 'estimated_time', value)}
+                        >
+                          {TIME_OPTIONS.map(time => (
+                            <Select.Item key={time} value={time}>
+                              {time}
+                            </Select.Item>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+                {/* Empty State */}
+                {!loading && !error && filteredProcedures.length === 0 && (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="text-lg text-neutral-600">
+                        No procedures found for {selectedCategory === 'All' ? 'this plan' : `category "${selectedCategory}"`}
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const element = document.getElementById('new-procedure-row');
+                          element?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="mt-4 px-4 py-4 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Add your first procedure
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
