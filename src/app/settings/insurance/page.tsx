@@ -42,7 +42,7 @@ function InsuranceSettingsPage() {
     if (plan?.type === 'private') {
       console.log('🚀 Navigating to Private Plan page...');
       // Navigate to the Private Plan detailed page
-      router.push('/settings/insurance/private-plan');
+      router.push('/private-plan');
     } else {
       // TODO: Implement edit functionality for other plans
       console.log('⚠️ Edit functionality for custom plans coming soon');

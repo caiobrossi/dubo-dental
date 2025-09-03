@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
-import { useRouter } from 'next/navigation';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import CurrencyInput from 'react-currency-input-field';
+import { useRouter } from 'next/navigation';
 import {
   useReactTable,
   getCoreRowModel,
@@ -111,7 +111,15 @@ export default function PrivatePlanDetailedPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editingProcedures, setEditingProcedures] = useState<Record<string, any>>({});
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [isCreating, setIsCreating] = useState(false);
 
+  // Use ref to avoid re-renders on editingProcedures changes
+  const editingProceduresRef = useRef(editingProcedures);
+  
+  // Keep ref updated
+  useEffect(() => {
+    editingProceduresRef.current = editingProcedures;
+  }, [editingProcedures]);
 
   // Handle navigation
   const handleBack = useCallback(() => {
@@ -163,7 +171,6 @@ export default function PrivatePlanDetailedPage() {
   }, []);
 
   // Handle adding a new procedure
-  const [isCreating, setIsCreating] = useState(false);
   
   const handleAddProcedure = useCallback(async () => {
     if (!newProcedure.name.trim()) {
@@ -222,12 +229,14 @@ export default function PrivatePlanDetailedPage() {
 
   // Get procedure value (from editing state or original)
   const getProcedureValue = useCallback((procedureId: string, field: string, defaultValue: any) => {
-    if (editingProcedures[procedureId] && field in editingProcedures[procedureId]) {
-      return editingProcedures[procedureId][field];
+    // Use a ref to access current editingProcedures without causing re-renders
+    const editingProcs = editingProceduresRef.current || editingProcedures;
+    if (editingProcs[procedureId] && field in editingProcs[procedureId]) {
+      return editingProcs[procedureId][field];
     }
     const procedure = procedures.find(p => p.id === procedureId);
     return procedure ? procedure[field] : defaultValue;
-  }, [editingProcedures, procedures]);
+  }, [procedures]);
 
   // Handle save changes
   const handleSaveChanges = useCallback(async () => {
@@ -320,6 +329,8 @@ export default function PrivatePlanDetailedPage() {
           className="w-full"
         >
           <TextField.Input
+            id={`name-${row.original.id}`}
+            key={`name-${row.original.id}`}
             value={getProcedureValue(row.original.id, 'name', '')}
             onChange={(e) => handleProcedureChange(row.original.id, 'name', e.target.value)}
           />
@@ -373,26 +384,24 @@ export default function PrivatePlanDetailedPage() {
       },
       size: 120,
       cell: ({ row }) => (
-        <div className="w-full">
-          <CurrencyInput
-            id={`price-${row.original.id}`}
-            name={`price-${row.original.id}`}
-            placeholder="$0.00"
-            value={getProcedureValue(row.original.id, 'price', 0)}
-            decimalsLimit={2}
-            decimalSeparator="."
-            groupSeparator=","
-            prefix="$"
-            allowDecimals={true}
-            allowNegativeValue={false}
-            disableGroupSeparators={false}
-            onValueChange={(value) => {
-              const numericValue = value ? parseFloat(value) : 0;
-              handleProcedureChange(row.original.id, 'price', numericValue);
-            }}
-            className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-md bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
+        <CurrencyInput
+          id={`price-${row.original.id}`}
+          key={`price-${row.original.id}`}
+          placeholder="$0.00"
+          defaultValue={getProcedureValue(row.original.id, 'price', 0)}
+          decimalsLimit={2}
+          decimalSeparator="."
+          groupSeparator=","
+          prefix="$"
+          allowDecimals={true}
+          allowNegativeValue={false}
+          disableGroupSeparators={false}
+          className="w-full px-3 py-2 border rounded-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          onValueChange={(value) => {
+            const numericValue = value ? parseFloat(value) : 0;
+            handleProcedureChange(row.original.id, 'price', numericValue);
+          }}
+        />
       ),
     }),
     columnHelper.accessor('estimated_time', {
@@ -451,7 +460,7 @@ export default function PrivatePlanDetailedPage() {
         </SubframeCore.DropdownMenu.Root>
       ),
     }),
-  ], [getProcedureValue, handleProcedureChange, handleDuplicate, handleDelete]);
+  ], [handleProcedureChange, handleDuplicate, handleDelete]);
 
   // Create table instance
   const table = useReactTable({
@@ -576,10 +585,10 @@ export default function PrivatePlanDetailedPage() {
       </div>
 
       {/* Content Section */}
-      <div className="flex-1 px-6 py-0 min-h-0">
+      <div className="flex-1 px-6 pb-6 min-h-0">
         <div className="border border-neutral-200 rounded-lg bg-white h-full flex flex-col">
           {/* Table Header - Fixed */}
-          <div className="bg-neutral-50 border-b border-neutral-200 flex-shrink-0 rounded-t-2xl">
+          <div className="bg-neutral-50 flex-shrink-0 rounded-t-2xl">
             <div className="flex">
               {/* Active */}
               <div className="px-4 py-3 text-left text-sm font-medium text-neutral-900 first:pl-6" style={{ width: '80px', flex: '0 0 80px' }}>
@@ -629,7 +638,7 @@ export default function PrivatePlanDetailedPage() {
           </div>
 
           {/* New Procedure Row - Fixed */}
-          <div id="new-procedure-row" className="flex items-center border-b border-neutral-200 bg-blue-50 hover:bg-blue-100 transition-colors flex-shrink-0">
+          <div id="new-procedure-row" className="flex items-center bg-blue-50 hover:bg-blue-100 transition-colors flex-shrink-0">
             <div className="px-4 py-4 first:pl-6" style={{ width: '80px', flex: '0 0 80px' }}>
               <Switch
                 checked={newProcedure.is_active}
@@ -667,10 +676,8 @@ export default function PrivatePlanDetailedPage() {
             </div>
             <div className="px-4 py-4" style={{ width: '120px', flex: '0 0 120px' }}>
               <CurrencyInput
-                id="new-procedure-price"
-                name="new-procedure-price"
                 placeholder="$0.00"
-                value={newProcedure.price}
+                defaultValue={newProcedure.price}
                 decimalsLimit={2}
                 decimalSeparator="."
                 groupSeparator=","
@@ -678,11 +685,11 @@ export default function PrivatePlanDetailedPage() {
                 allowDecimals={true}
                 allowNegativeValue={false}
                 disableGroupSeparators={false}
+                className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onValueChange={(value) => {
                   const numericValue = value ? parseFloat(value) : 0;
                   setNewProcedure(prev => ({...prev, price: numericValue}));
                 }}
-                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="px-4 py-4" style={{ width: '150px', flex: '0 0 150px' }}>
@@ -739,7 +746,7 @@ export default function PrivatePlanDetailedPage() {
 
             {/* Existing Procedures */}
             {!loading && !error && table.getRowModel().rows.map((row) => (
-              <div key={row.id} className="flex items-center border-b border-neutral-200 hover:bg-neutral-50 transition-colors">
+              <div key={row.id} className="flex items-center hover:bg-neutral-50 transition-colors">
                 {/* Active */}
                 <div className="px-4 py-4 first:pl-6" style={{ width: '80px', flex: '0 0 80px' }}>
                   {flexRender(row.getVisibleCells()[0].column.columnDef.cell, row.getVisibleCells()[0].getContext())}
