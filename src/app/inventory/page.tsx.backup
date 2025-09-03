@@ -1,0 +1,470 @@
+"use client";
+
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { Button } from "@/ui/components/Button";
+import { Checkbox } from "@/ui/components/Checkbox";
+import { Chips } from "@/ui/components/Chips";
+import { DropdownMenu } from "@/ui/components/DropdownMenu";
+import { FilterChip } from "@/ui/components/FilterChip";
+import { IconButton } from "@/ui/components/IconButton";
+import { TextField } from "@/ui/components/TextField";
+import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
+import { FeatherChevronDown } from "@subframe/core";
+import { FeatherEdit2 } from "@subframe/core";
+import { FeatherMoreHorizontal } from "@subframe/core";
+import { FeatherPlus } from "@subframe/core";
+import { FeatherSearch } from "@subframe/core";
+import { FeatherStar } from "@subframe/core";
+import { FeatherTrash } from "@subframe/core";
+import { FeatherX } from "@subframe/core";
+import * as SubframeCore from "@subframe/core";
+import NewProductModal from "@/components/custom/NewProductModal";
+import { supabase } from "@/lib/supabase";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  flexRender,
+  createColumnHelper,
+  type SortingState,
+  type ColumnFiltersState,
+} from "@tanstack/react-table";
+
+interface InventoryItem {
+  id: string;
+  product_name: string;
+  category: string;
+  current_stock: number;
+  minimum_stock: number;
+  maximum_stock: number;
+  unit_price: number;
+  sku?: string;
+  supplier?: string;
+  location?: string;
+  is_favorite: boolean;
+  created_at: string;
+}
+
+const columnHelper = createColumnHelper<InventoryItem>();
+
+function InventoryPage() {
+  const [searchValue, setSearchValue] = useState("");
+  const [sortBy, setSortBy] = useState("a-z");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [showNewProductModal, setShowNewProductModal] = useState(false);
+  const [data, setData] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Function to load inventory data from Supabase
+  const loadInventoryData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data: inventoryData, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading inventory:', error);
+        return;
+      }
+
+      setData(inventoryData || []);
+    } catch (error) {
+      console.error('Error loading inventory:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load data when component mounts
+  useEffect(() => {
+    loadInventoryData();
+  }, [loadInventoryData]);
+
+  const handleProductCreated = () => {
+    console.log('Product created successfully');
+    // Reload the data to show the new product
+    loadInventoryData();
+  };
+
+  // Helper function to get stock status based on current vs min/max
+  const getStockStatus = (current: number, min: number, max: number): "success" | "error" | "neutral" => {
+    if (current <= min) return "error";
+    if (current >= max) return "neutral";
+    return "success";
+  };
+
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("product_name", {
+        header: "Product",
+        cell: (info) => (
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={false}
+              onCheckedChange={(checked: boolean) => {}}
+            />
+            <span className="text-body-medium font-body-medium text-default-font">
+              {info.getValue()}
+            </span>
+          </div>
+        ),
+      }),
+      columnHelper.accessor("category", {
+        header: "Category",
+        cell: (info) => (
+          <span className="whitespace-nowrap text-body-medium font-body-medium text-neutral-500">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "stock_level",
+        header: "Stock Level",
+        cell: (info) => {
+          const { current_stock, minimum_stock, maximum_stock } = info.row.original;
+          return (
+            <span className="whitespace-nowrap text-body-medium font-body-medium text-neutral-500">
+              {current_stock}/{maximum_stock}
+            </span>
+          );
+        },
+      }),
+      columnHelper.accessor("current_stock", {
+        header: "Quantity",
+        cell: (info) => {
+          const { current_stock, minimum_stock, maximum_stock } = info.row.original;
+          const status = getStockStatus(current_stock, minimum_stock, maximum_stock);
+          return (
+            <Chips variant={status} size="large">
+              {info.getValue()}
+            </Chips>
+          );
+        },
+      }),
+      columnHelper.accessor("unit_price", {
+        header: "Unit Price",
+        cell: (info) => (
+          <span className="text-body-medium font-body-medium text-default-font">
+            ${info.getValue().toFixed(2)}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "total",
+        header: "Total Value",
+        cell: (info) => (
+          <span className="text-body-medium font-body-medium text-default-font">
+            ${(info.row.original.unit_price * info.row.original.current_stock).toFixed(2)}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: () => (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="neutral-secondary"
+              size="large"
+              onClick={() => {}}
+            >
+              Withdraw
+            </Button>
+            <SubframeCore.DropdownMenu.Root>
+              <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                <IconButton
+                  size="medium"
+                  icon={<FeatherMoreHorizontal />}
+                  onClick={() => {}}
+                />
+              </SubframeCore.DropdownMenu.Trigger>
+              <SubframeCore.DropdownMenu.Portal>
+                <SubframeCore.DropdownMenu.Content
+                  side="bottom"
+                  align="end"
+                  sideOffset={8}
+                  asChild={true}
+                >
+                  <DropdownMenu>
+                    <DropdownMenu.DropdownItem icon={<FeatherStar />}>
+                      Favorite
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem icon={<FeatherPlus />}>
+                      Add Stock
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem icon={<FeatherEdit2 />}>
+                      Edit
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem icon={<FeatherTrash />}>
+                      Delete
+                    </DropdownMenu.DropdownItem>
+                  </DropdownMenu>
+                </SubframeCore.DropdownMenu.Content>
+              </SubframeCore.DropdownMenu.Portal>
+            </SubframeCore.DropdownMenu.Root>
+          </div>
+        ),
+      }),
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter: searchValue,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setSearchValue,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  return (
+    <DefaultPageLayout>
+      <div className="flex h-full w-full flex-col items-start bg-default-background">
+        {/* Header */}
+        <div className="flex h-16 w-full flex-none items-center justify-between bg-white px-8 py-3 shadow-sm">
+          <span className="text-heading-2 font-heading-2 text-default-font">
+            Inventory Management
+          </span>
+          <Button
+            variant="brand-primary"
+            size="large"
+            icon={<FeatherPlus />}
+            onClick={() => {
+              console.log('Add Product button clicked');
+              setShowNewProductModal(true);
+            }}
+          >
+            Add Product
+          </Button>
+        </div>
+
+        {/* Statistics Cards Section */}
+        <div className="w-full bg-default-background px-8 py-6">
+          <div className="flex w-full items-start justify-center gap-2">
+            <div className="flex grow shrink-0 basis-0 items-center gap-8 border-r border-solid border-neutral-border px-1 py-1">
+              <img
+                className="flex-none"
+                src="https://res.cloudinary.com/subframe/image/upload/v1752163043/uploads/12900/v9r3qvfj6j3uwih10ssm.svg"
+              />
+              <div className="flex flex-col items-end gap-4">
+                <span className="text-body-medium font-body-medium text-subtext-color">
+                  Total products
+                </span>
+                <span className="font-['Urbanist'] text-[60px] font-[300] leading-[36px] text-default-font">
+                  2353
+                </span>
+              </div>
+            </div>
+            <div className="flex grow shrink-0 basis-0 items-center gap-8 border-r border-solid border-neutral-border px-1 py-1">
+              <img
+                className="flex-none"
+                src="https://res.cloudinary.com/subframe/image/upload/v1752163311/uploads/12900/rbf5syfxadggdravzbhl.svg"
+              />
+              <div className="flex flex-col items-end gap-4">
+                <span className="text-body-medium font-body-medium text-subtext-color">
+                  Products in Bare minimum
+                </span>
+                <span className="font-['Urbanist'] text-[60px] font-[300] leading-[36px] text-default-font">
+                  32
+                </span>
+              </div>
+            </div>
+            <div className="flex grow shrink-0 basis-0 items-center gap-8 border-r border-solid border-neutral-border px-1 py-1">
+              <img
+                className="flex-none"
+                src="https://res.cloudinary.com/subframe/image/upload/v1752163311/uploads/12900/d4yk09dxvjwtsyg0alnh.svg"
+              />
+              <div className="flex flex-col items-end gap-4">
+                <span className="text-body-medium font-body-medium text-subtext-color">
+                  Product w/ good amount
+                </span>
+                <span className="font-['Urbanist'] text-[60px] font-[300] leading-[36px] text-default-font">
+                  2010
+                </span>
+              </div>
+            </div>
+            <div className="flex grow shrink-0 basis-0 items-center gap-8 px-1 py-1">
+              <img
+                className="flex-none"
+                src="https://res.cloudinary.com/subframe/image/upload/v1752163311/uploads/12900/swvvsjwhbufzgnqfe1kb.svg"
+              />
+              <div className="flex flex-col items-end gap-4">
+                <span className="text-body-medium font-body-medium text-subtext-color">
+                  Products above maximum
+                </span>
+                <span className="font-['Urbanist'] text-[60px] font-[300] leading-[36px] text-default-font">
+                  203
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters and Search Section */}
+        <div className="flex w-full flex-wrap items-center justify-between px-8 pb-4">
+          <div className="flex items-center gap-4">
+            <SubframeCore.DropdownMenu.Root>
+              <SubframeCore.DropdownMenu.Trigger asChild={true}>
+                <Button
+                  variant="neutral-secondary"
+                  size="large"
+                  iconRight={<FeatherChevronDown />}
+                >
+                  {selectedCategory === "all" ? "All categories" :
+                   selectedCategory === "equipment" ? "Equipment" :
+                   selectedCategory === "consumables" ? "Consumables" :
+                   selectedCategory === "materials" ? "Materials" :
+                   selectedCategory === "instruments" ? "Instruments" : "All categories"}
+                </Button>
+              </SubframeCore.DropdownMenu.Trigger>
+              <SubframeCore.DropdownMenu.Portal>
+                <SubframeCore.DropdownMenu.Content
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  asChild={true}
+                >
+                  <DropdownMenu>
+                    <DropdownMenu.DropdownItem onClick={() => setSelectedCategory("all")}>
+                      All categories
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem onClick={() => setSelectedCategory("equipment")}>
+                      Equipment
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem onClick={() => setSelectedCategory("consumables")}>
+                      Consumables
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem onClick={() => setSelectedCategory("materials")}>
+                      Materials
+                    </DropdownMenu.DropdownItem>
+                    <DropdownMenu.DropdownItem onClick={() => setSelectedCategory("instruments")}>
+                      Instruments
+                    </DropdownMenu.DropdownItem>
+                  </DropdownMenu>
+                </SubframeCore.DropdownMenu.Content>
+              </SubframeCore.DropdownMenu.Portal>
+            </SubframeCore.DropdownMenu.Root>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <TextField
+              className="h-10 w-96 flex-none [&>div]:rounded-full [&>div]:bg-neutral-100 [&>div]:hover:bg-neutral-200 [&>div]:transition-colors [&>div]:border-0 [&>div]:shadow-none [&>div:focus-within]:!bg-white [&>div:focus-within]:ring-0 [&>div:focus-within]:outline-none"
+              variant="filled"
+              label=""
+              helpText=""
+              icon={<FeatherSearch />}
+              iconRight={searchValue ? (
+                <IconButton
+                  variant="neutral-tertiary"
+                  size="small"
+                  icon={<FeatherX />}
+                  onClick={() => setSearchValue("")}
+                />
+              ) : null}
+            >
+              <TextField.Input
+                className="rounded-full bg-transparent border-0 focus:outline-none focus:ring-0"
+                placeholder="Search by product name, SKU, category"
+                value={searchValue}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchValue(event.target.value)}
+              />
+            </TextField>
+          </div>
+        </div>
+
+        {/* Table Container with Overflow */}
+        <div className="flex w-full grow shrink-0 basis-0 flex-col items-stretch gap-2 rounded-lg bg-default-background px-8 pb-6 overflow-auto">
+          <div className="w-full h-full flex flex-col">
+            {/* Table container */}
+            <div className="border border-neutral-200 rounded-lg bg-white overflow-hidden flex-1 flex flex-col">
+              {/* Header */}
+              <div className="bg-neutral-50 border-b border-neutral-200 sticky top-0 z-[5]">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <div key={headerGroup.id} className="flex">
+                    {headerGroup.headers.map((header) => (
+                      <div
+                        key={header.id}
+                        className="flex-1 px-4 py-3 text-left text-sm font-medium text-neutral-900 first:pl-6 last:pr-6 cursor-pointer select-none hover:bg-neutral-100"
+                        onClick={header.column.getToggleSortingHandler()}
+                        style={{ minWidth: 150 }}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getIsSorted() === "asc" && " ↑"}
+                            {header.column.getIsSorted() === "desc" && " ↓"}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {/* Body */}
+              <div className="overflow-auto flex-1">
+                <div className="w-full">
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <div className="text-lg text-neutral-600">Loading inventory...</div>
+                      </div>
+                    </div>
+                  ) : data.length === 0 ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <div className="text-lg text-neutral-600">No products found.</div>
+                        <div className="text-sm text-neutral-500 mt-2">Add your first product using the button above.</div>
+                      </div>
+                    </div>
+                  ) : (
+                    table.getRowModel().rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex items-center border-b border-neutral-200 hover:bg-neutral-50 transition-colors"
+                      style={{ minHeight: 80 }}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <div
+                          key={cell.id}
+                          className="flex-1 px-4 py-2 text-sm text-neutral-900 first:pl-6 last:pr-6 overflow-hidden"
+                          style={{ minWidth: 150 }}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </div>
+                      ))}
+                    </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* New Product Modal */}
+      <NewProductModal
+        open={showNewProductModal}
+        onOpenChange={setShowNewProductModal}
+        onProductCreated={handleProductCreated}
+      />
+    </DefaultPageLayout>
+  );
+}
+
+export default InventoryPage;

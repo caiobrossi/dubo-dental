@@ -55,7 +55,7 @@ const AppointmentCardRoot = React.forwardRef<
     >
       <div className="flex w-full flex-col items-start gap-2">
         {patientName ? (
-          <span className="font-['Urbanist'] text-[18px] font-[500] leading-[20px] text-default-font">
+          <span className="font-['Urbanist'] text-[16px] font-[500] leading-[20px] text-default-font">
             {patientName}
           </span>
         ) : null}

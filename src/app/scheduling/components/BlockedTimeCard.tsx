@@ -1,5 +1,6 @@
 import React from 'react';
 import { BlockedTime, AppointmentLayout, LAYOUT_CONSTANTS, timeUtils } from '../hooks/useScheduler';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface BlockedTimeCardProps {
   blockedTime: BlockedTime;
@@ -12,6 +13,8 @@ export const BlockedTimeCard: React.FC<BlockedTimeCardProps> = ({
   layout,
   onClick
 }) => {
+  const { formatTime } = useSettings();
+  
   // Determinar quais informações mostrar baseado no tamanho
   const showTime = layout.widthPercentage > 30;
   const showReason = layout.height > 35;
@@ -35,7 +38,7 @@ export const BlockedTimeCard: React.FC<BlockedTimeCardProps> = ({
           rgba(255, 255, 255, 0.3) 8px
         )`
       }}
-      title={`BLOCKED: ${blockedTime.professional_name} - ${timeUtils.formatTimeWithoutSeconds(blockedTime.start_time)} - ${timeUtils.formatTimeWithoutSeconds(blockedTime.end_time)} - ${blockedTime.reason || 'No reason'}`}
+      title={`BLOCKED: ${blockedTime.professional_name} - ${formatTime(blockedTime.start_time)} - ${formatTime(blockedTime.end_time)} - ${blockedTime.reason || 'No reason'}`}
     >
       {/* Primeira linha: Nome do profissional + Horário */}
       <div className="flex items-center justify-between w-full mb-1">
@@ -44,7 +47,7 @@ export const BlockedTimeCard: React.FC<BlockedTimeCardProps> = ({
         </div>
         {showTime && (
           <div className="text-neutral-500 text-xs leading-tight whitespace-nowrap">
-            {timeUtils.formatTimeWithoutSeconds(blockedTime.start_time)} - {timeUtils.formatTimeWithoutSeconds(blockedTime.end_time)}
+            {formatTime(blockedTime.start_time)} - {formatTime(blockedTime.end_time)}
           </div>
         )}
       </div>

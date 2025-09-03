@@ -5,20 +5,40 @@ import { DateRange, ViewMode, BUSINESS_HOURS } from '../types';
  */
 
 /**
- * Get the start of the week (Monday) for a given date
+ * Get the start of the week for a given date based on the week start day
  */
-export const getWeekStart = (date: Date): Date => {
+export const getWeekStart = (date: Date, weekStartsOn: 'Monday' | 'Sunday' | 'Saturday' = 'Monday'): Date => {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday as first day
-  return new Date(d.setDate(diff));
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  
+  let startDay: number;
+  switch (weekStartsOn) {
+    case 'Sunday':
+      startDay = 0;
+      break;
+    case 'Monday':
+      startDay = 1;
+      break;
+    case 'Saturday':
+      startDay = 6;
+      break;
+  }
+  
+  let diff = day - startDay;
+  if (diff < 0) {
+    diff += 7; // Handle negative values by going back a week
+  }
+  
+  const weekStart = new Date(d);
+  weekStart.setDate(d.getDate() - diff);
+  return weekStart;
 };
 
 /**
- * Get the end of the week (Sunday) for a given date
+ * Get the end of the week for a given date based on the week start day
  */
-export const getWeekEnd = (date: Date): Date => {
-  const weekStart = getWeekStart(date);
+export const getWeekEnd = (date: Date, weekStartsOn: 'Monday' | 'Sunday' | 'Saturday' = 'Monday'): Date => {
+  const weekStart = getWeekStart(date, weekStartsOn);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
   return weekEnd;
@@ -27,34 +47,34 @@ export const getWeekEnd = (date: Date): Date => {
 /**
  * Generate date range based on view mode and selected date
  */
-export const getDateRange = (selectedDate: Date, viewMode: ViewMode): DateRange => {
+export const getDateRange = (selectedDate: Date, viewMode: ViewMode, weekStartsOn: 'Monday' | 'Sunday' | 'Saturday' = 'Monday'): DateRange => {
   switch (viewMode) {
     case 'day':
       return { start: selectedDate, end: selectedDate };
     
     case '5days': {
-      const weekStart = getWeekStart(selectedDate);
+      const weekStart = getWeekStart(selectedDate, weekStartsOn);
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 4); // Monday to Friday
+      weekEnd.setDate(weekStart.getDate() + 4); // First 5 days of the week
       return { start: weekStart, end: weekEnd };
     }
     
     case 'week':
     default:
-      return { start: getWeekStart(selectedDate), end: getWeekEnd(selectedDate) };
+      return { start: getWeekStart(selectedDate, weekStartsOn), end: getWeekEnd(selectedDate, weekStartsOn) };
   }
 };
 
 /**
  * Generate array of days to display based on view mode
  */
-export const generateDisplayDays = (selectedDate: Date, viewMode: ViewMode): Date[] => {
+export const generateDisplayDays = (selectedDate: Date, viewMode: ViewMode, weekStartsOn: 'Monday' | 'Sunday' | 'Saturday' = 'Monday'): Date[] => {
   const days: Date[] = [];
   
   if (viewMode === 'day') {
     days.push(new Date(selectedDate));
   } else {
-    const { start } = getDateRange(selectedDate, viewMode);
+    const { start } = getDateRange(selectedDate, viewMode, weekStartsOn);
     const dayCount = viewMode === '5days' ? 5 : 7;
     
     for (let i = 0; i < dayCount; i++) {
@@ -80,13 +100,12 @@ export const isToday = (date: Date): boolean => {
 };
 
 /**
- * Get day name for a date (adjusted so Monday = 0)
+ * Get day name for a date
  */
 export const getDayName = (date: Date): string => {
-  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayIndex = date.getDay();
-  const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Adjust so Monday = 0
-  return dayNames[adjustedIndex];
+  return dayNames[dayIndex];
 };
 
 /**
@@ -119,19 +138,31 @@ export const generateBusinessHours = (): number[] => {
 export const navigateDate = (
   currentDate: Date, 
   direction: 'prev' | 'next' | 'today',
-  viewMode: ViewMode
+  viewMode: ViewMode,
+  weekStartsOn: 'Monday' | 'Sunday' | 'Saturday' = 'Monday'
 ): Date => {
   if (direction === 'today') {
     return new Date();
   }
   
   const newDate = new Date(currentDate);
-  const daysToMove = viewMode === 'day' ? 1 : 7;
   
-  if (direction === 'prev') {
-    newDate.setDate(newDate.getDate() - daysToMove);
-  } else if (direction === 'next') {
-    newDate.setDate(newDate.getDate() + daysToMove);
+  if (viewMode === 'day') {
+    // For day view, just move by 1 day
+    const daysToMove = 1;
+    if (direction === 'prev') {
+      newDate.setDate(newDate.getDate() - daysToMove);
+    } else if (direction === 'next') {
+      newDate.setDate(newDate.getDate() + daysToMove);
+    }
+  } else {
+    // For week/5days view, move by 7 days
+    const daysToMove = 7;
+    if (direction === 'prev') {
+      newDate.setDate(newDate.getDate() - daysToMove);
+    } else if (direction === 'next') {
+      newDate.setDate(newDate.getDate() + daysToMove);
+    }
   }
   
   return newDate;

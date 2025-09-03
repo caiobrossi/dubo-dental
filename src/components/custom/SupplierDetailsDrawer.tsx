@@ -7,7 +7,7 @@ import { LinkButton } from "@/ui/components/LinkButton";
 import { DrawerLayout } from "@/ui/layouts/DrawerLayout";
 import { FeatherEye } from "@subframe/core";
 import { FeatherX } from "@subframe/core";
-import { supabase, Supplier, SupplierOrder } from "@/lib/supabase";
+import { supabase, Supplier } from "@/lib/supabase";
 
 interface SupplierDetailsDrawerProps {
   open: boolean;
@@ -17,13 +17,11 @@ interface SupplierDetailsDrawerProps {
 
 function SupplierDetailsDrawer({ open, onOpenChange, supplierId }: SupplierDetailsDrawerProps) {
   const [supplierData, setSupplierData] = useState<Supplier | null>(null);
-  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open && supplierId) {
       fetchSupplierData(supplierId);
-      fetchSupplierOrders(supplierId);
     }
   }, [open, supplierId]);
 
@@ -49,27 +47,7 @@ function SupplierDetailsDrawer({ open, onOpenChange, supplierId }: SupplierDetai
     }
   };
 
-  const fetchSupplierOrders = async (id: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('supplier_orders')
-        .select('*')
-        .eq('supplier_id', id)
-        .order('order_date', { ascending: false });
 
-      if (error) {
-        console.error('Erro ao buscar pedidos do supplier:', error);
-      } else {
-        setSupplierOrders(data || []);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar pedidos do supplier:', error);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
 
   const handleEmailClick = (email: string) => {
     window.open(`mailto:${email}`, '_blank');
@@ -139,16 +117,22 @@ function SupplierDetailsDrawer({ open, onOpenChange, supplierId }: SupplierDetai
                 </span>
               </div>
             )}
-            {supplierData.alternative_phone && (
-              <div className="flex h-12 w-full flex-none items-center justify-between border-b border-solid border-neutral-border py-2">
-                <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
-                  Alternative number
-                </span>
-                <span className="grow shrink-0 basis-0 text-body-large font-body-large text-default-font text-right">
-                  {supplierData.alternative_phone}
-                </span>
-              </div>
-            )}
+{(() => {
+              const alternativePhones = supplierData.alternative_phone 
+                ? supplierData.alternative_phone.split(',').map(phone => phone.trim()).filter(phone => phone)
+                : [];
+              
+              return alternativePhones.map((altPhone, index) => (
+                <div key={index} className="flex h-12 w-full flex-none items-center justify-between border-b border-solid border-neutral-border py-2">
+                  <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
+                    {index === 0 ? "Alternative numbers" : ""}
+                  </span>
+                  <span className="grow shrink-0 basis-0 text-body-large font-body-large text-default-font text-right">
+                    {altPhone}
+                  </span>
+                </div>
+              ));
+            })()}
             {supplierData.website && (
               <div className="flex h-12 w-full flex-none items-center justify-between border-b border-solid border-neutral-border py-2">
                 <span className="w-52 flex-none text-body-medium font-body-medium text-subtext-color">
@@ -195,63 +179,6 @@ function SupplierDetailsDrawer({ open, onOpenChange, supplierId }: SupplierDetai
             )}
           </div>
           
-          <div className="flex w-full flex-col items-start">
-            <div className="flex w-full flex-col items-start pb-4">
-              <span className="w-full text-heading-4 font-heading-4 text-default-font">
-                Purchase History
-              </span>
-            </div>
-            {supplierOrders.length === 0 ? (
-              <div className="flex w-full justify-center py-8">
-                <span className="text-body-medium font-body-medium text-subtext-color">
-                  Nenhum histórico de compras encontrado
-                </span>
-              </div>
-            ) : (
-              supplierOrders.map((order) => (
-                <div key={order.id} className="flex h-12 w-full flex-none items-center gap-4 border-b border-solid border-neutral-border py-2">
-                  <div className="flex items-center gap-4">
-                    <span className="font-body-small-/bold text-subtext-color">
-                      {formatDate(order.order_date)}
-                    </span>
-                    <span className="grow shrink-0 basis-0 text-body-medium font-body-medium text-default-font">
-                      Order {order.order_number}
-                    </span>
-                  </div>
-                  <span className="grow shrink-0 basis-0 text-body-large font-body-large text-default-font text-right">
-                    ${order.total_amount.toFixed(2)}
-                  </span>
-                  <IconButton
-                    disabled={false}
-                    variant="brand-tertiary"
-                    size="medium"
-                    icon={<FeatherEye />}
-                    loading={false}
-                    onClick={() => {
-                      // TODO: Implementar visualização dos detalhes do pedido
-                      console.log('View order details:', order.id);
-                    }}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-          
-          <Button
-            className="h-10 w-full flex-none"
-            disabled={false}
-            variant="neutral-secondary"
-            size="large"
-            icon={null}
-            iconRight={null}
-            loading={false}
-            onClick={() => {
-              // TODO: Implementar funcionalidade de fazer pedido
-              console.log('Order from supplier:', supplierData.name);
-            }}
-          >
-            Order from this Supplier
-          </Button>
         </div>
       </div>
     </DrawerLayout>

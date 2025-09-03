@@ -73,6 +73,15 @@ function NewLabOrderModal({ open, onOpenChange, onLabOrderCreated, editingOrder 
     }
   }, [editingOrder, open]);
 
+  // Função para capitalizar texto (primeira letra de cada palavra)
+  const capitalizeText = (text: string): string => {
+    return text.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+      .trim();
+  };
+
   const fetchPatientsAndProfessionals = async () => {
     try {
       // Buscar pacientes
@@ -119,7 +128,7 @@ function NewLabOrderModal({ open, onOpenChange, onLabOrderCreated, editingOrder 
       const selectedProfessional = professionals.find(p => p.id === formData.professional_id);
 
       const labOrderData = {
-        order_name: formData.order_name,
+        order_name: capitalizeText(formData.order_name),
         patient_id: formData.patient_id,
         patient_name: selectedPatient?.name,
         professional_id: formData.professional_id,

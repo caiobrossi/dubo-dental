@@ -7,6 +7,7 @@ import { SortableHeader } from "@/ui/components/SortableHeader";
 import { FeatherMoreHorizontal, FeatherEdit2, FeatherTrash, FeatherDownload, FeatherPrinter } from "@subframe/core";
 import * as SubframeCore from "@subframe/core";
 import { LabOrder, Professional } from "@/lib/supabase";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export interface LabOrderRowData extends LabOrder {
   professionalName?: string;
@@ -20,6 +21,8 @@ interface ColumnProps {
 }
 
 export function useLabOrderColumns({ professionals, onEditOrder, onDeleteOrder, onViewDetails }: ColumnProps) {
+  const { formatDateWithTimezone, formatCurrency } = useSettings();
+  
   return useMemo<ColumnDef<LabOrderRowData>[]>(() => [
     {
       accessorKey: 'order_name',
@@ -33,7 +36,7 @@ export function useLabOrderColumns({ professionals, onEditOrder, onDeleteOrder, 
         const order = row.original;
         return (
           <button
-            className="whitespace-nowrap font-['Urbanist'] text-[16px] font-[600] leading-[20px] text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-left"
+            className="whitespace-nowrap text-heading-4 font-heading-4 text-default-font hover:text-blue-600 hover:underline cursor-pointer text-left capitalize transition-colors duration-200"
             onClick={() => onViewDetails(order.id!)}
           >
             {order.order_name}
@@ -132,7 +135,7 @@ export function useLabOrderColumns({ professionals, onEditOrder, onDeleteOrder, 
         const order = row.original;
         return (
           <span className="whitespace-nowrap text-body-medium font-body-medium text-default-font">
-            {order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : 'N/A'}
+            {order.due_date ? formatDateWithTimezone(order.due_date) : 'N/A'}
           </span>
         );
       },
@@ -151,7 +154,7 @@ export function useLabOrderColumns({ professionals, onEditOrder, onDeleteOrder, 
         const order = row.original;
         return (
           <span className="whitespace-nowrap text-body-medium font-body-medium text-default-font">
-            ${order.total_price?.toFixed(2) || '0.00'}
+            {formatCurrency(order.total_price || 0)}
           </span>
         );
       },
@@ -170,7 +173,7 @@ export function useLabOrderColumns({ professionals, onEditOrder, onDeleteOrder, 
         const order = row.original;
         return (
           <span className="whitespace-nowrap text-body-medium font-body-medium text-default-font">
-            {order.created_at ? new Date(order.created_at).toLocaleDateString('pt-BR') : 'N/A'}
+            {order.created_at ? formatDateWithTimezone(order.created_at) : 'N/A'}
           </span>
         );
       },
@@ -297,5 +300,5 @@ export function useLabOrderColumns({ professionals, onEditOrder, onDeleteOrder, 
       enableSorting: false,
       size: 60,
     },
-  ], [professionals, onEditOrder, onDeleteOrder, onViewDetails]);
+  ], [professionals, onEditOrder, onDeleteOrder, onViewDetails, formatDateWithTimezone, formatCurrency]);
 }

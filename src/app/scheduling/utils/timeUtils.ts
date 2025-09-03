@@ -1,4 +1,5 @@
 import { Appointment, BlockedTime } from '../types';
+import { AppSettings } from '@/contexts/SettingsContext';
 
 /**
  * Time utility functions for the scheduling system
@@ -14,7 +15,11 @@ export const formatTimeHM = (time: string): string => {
 /**
  * Format period display based on view mode and selected date
  */
-export const formatPeriod = (selectedDate: Date, viewMode: 'day' | '5days' | 'week') => {
+export const formatPeriod = (
+  selectedDate: Date, 
+  viewMode: 'day' | '5days' | 'week',
+  weekStartsOn: 'Monday' | 'Sunday' | 'Saturday' = 'Monday'
+) => {
   const monthYear = selectedDate.toLocaleDateString('en-US', { 
     month: 'long', 
     year: 'numeric' 
@@ -28,14 +33,34 @@ export const formatPeriod = (selectedDate: Date, viewMode: 'day' | '5days' | 'we
   }
   
   // For 5days and week modes, calculate the range
-  const getWeekStart = (date: Date): Date => {
+  const getWeekStart = (date: Date, weekStartsOn: 'Monday' | 'Sunday' | 'Saturday'): Date => {
     const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    let startDay: number;
+    switch (weekStartsOn) {
+      case 'Sunday':
+        startDay = 0;
+        break;
+      case 'Monday':
+        startDay = 1;
+        break;
+      case 'Saturday':
+        startDay = 6;
+        break;
+    }
+    
+    let diff = day - startDay;
+    if (diff < 0) {
+      diff += 7; // Handle negative values by going back a week
+    }
+    
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - diff);
+    return weekStart;
   };
   
-  const weekStart = getWeekStart(selectedDate);
+  const weekStart = getWeekStart(selectedDate, weekStartsOn);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + (viewMode === '5days' ? 4 : 6));
   
@@ -122,10 +147,10 @@ export const shouldRemoveBottomBorder = (
 
 /**
  * Calculate appointment card height based on full duration
- * Each hour slot is 80px (h-20), divided into 4 quarters of 15 minutes each (20px each)
+ * Each hour slot is 80px (h-20), divided into blocks based on calendarBlocks setting
  * Card extends across multiple slots if needed, but stops at slot boundaries when ending at exact hours
  */
-export const calculateAppointmentHeight = (startTime: string, endTime: string): number => {
+export const calculateAppointmentHeight = (startTime: string, endTime: string, calendarBlocks: number = 15): number => {
   const [startHour, startMinute] = startTime.split(':').map(Number);
   const [endHour, endMinute] = endTime.split(':').map(Number);
   
@@ -142,22 +167,27 @@ export const calculateAppointmentHeight = (startTime: string, endTime: string): 
   
   const durationMinutes = adjustedEndMinutes - startTotalMinutes;
   
-  // Each 15-minute block is 20px (80px per hour / 4 = 20px per 15 minutes)
-  const heightPx = (durationMinutes / 15) * 20;
+  // Calculate block height based on calendarBlocks setting
+  // 80px per hour divided by (60 / calendarBlocks) blocks per hour
+  const blocksPerHour = 60 / calendarBlocks;
+  const heightPerBlock = 80 / blocksPerHour;
+  const heightPx = (durationMinutes / calendarBlocks) * heightPerBlock;
   
-  // Minimum height of 20px (1 quarter)
-  return Math.max(heightPx, 20);
+  // Minimum height of one block
+  return Math.max(heightPx, heightPerBlock);
 };
 
 /**
  * Calculate appointment top position within the hour slot based on start time
  */
-export const calculateAppointmentTop = (startTime: string, hourSlotStart: number): number => {
+export const calculateAppointmentTop = (startTime: string, hourSlotStart: number, calendarBlocks: number = 15): number => {
   const [startHour, startMinute] = startTime.split(':').map(Number);
   
   // If appointment starts in a different hour than the current slot, position at top
   if (startHour !== hourSlotStart) return 0;
   
-  // Each 15-minute block is 20px, so position based on minutes within the hour
-  return (startMinute / 15) * 20;
+  // Calculate position based on calendar blocks setting
+  const blocksPerHour = 60 / calendarBlocks;
+  const heightPerBlock = 80 / blocksPerHour;
+  return (startMinute / calendarBlocks) * heightPerBlock;
 };

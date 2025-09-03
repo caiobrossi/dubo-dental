@@ -43,11 +43,13 @@ const DefaultPageLayoutRoot = React.forwardRef<
   
   // Use try-catch to handle context outside provider
   let isCollapsed = false;
+  let isLoading = false;
   try {
     const sidebarContext = useSidebar();
     isCollapsed = sidebarContext.isCollapsed;
+    isLoading = sidebarContext.isLoading;
   } catch (e) {
-    // Context not available, use default value
+    // Context not available, use default values
   }
 
   // Function to check if a path is active
@@ -65,6 +67,11 @@ const DefaultPageLayoutRoot = React.forwardRef<
   const navigateTo = (path: string) => {
     router.push(path);
   };
+
+  // During loading, just render normally but let individual components handle loading
+  // if (isLoading) {
+  //   return normal layout with loading handled in individual components
+  // }
 
   return (
     <div

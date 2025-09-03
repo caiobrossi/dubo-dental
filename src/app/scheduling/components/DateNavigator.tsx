@@ -17,6 +17,7 @@ import { ViewModeSelector } from './ViewModeSelector';
 import { TestSegmentControl } from './TestSegmentControl';
 import { ProfessionalFilter } from './ProfessionalFilter';
 import { EnhancedCalendar } from './EnhancedCalendar';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface DateNavigatorProps {
   selectedDate: Date;
@@ -41,11 +42,12 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
   onProfessionalChange,
   onCalendarPanelToggle
 }) => {
+  const { settings } = useSettings();
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const period = formatPeriod(selectedDate, viewMode);
+  const period = formatPeriod(selectedDate, viewMode, settings.weekStartsOn);
 
   const handleNavigation = (direction: 'prev' | 'next' | 'today') => {
-    const newDate = navigateDate(selectedDate, direction, viewMode);
+    const newDate = navigateDate(selectedDate, direction, viewMode, settings.weekStartsOn);
     onDateChange(newDate);
   };
 

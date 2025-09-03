@@ -10,6 +10,8 @@ import { FeatherMoreHorizontal, FeatherEdit2, FeatherTrash, FeatherEye } from "@
 import * as SubframeCore from "@subframe/core";
 import { Patient, Professional } from "@/lib/supabase";
 import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
+import { createPatientSlug } from "@/utils/patientSlug";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export interface PatientRowData extends Patient {
   professionalName?: string;
@@ -23,6 +25,7 @@ interface ColumnProps {
 
 export function usePatientColumns({ professionals, onEditPatient, onDeletePatient }: ColumnProps) {
   const router = useRouter();
+  const { formatDateWithTimezone } = useSettings();
   
   return useMemo<ColumnDef<PatientRowData>[]>(() => [
     {
@@ -49,7 +52,7 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
             <div className="flex flex-col items-start gap-1">
               <span 
                 className="whitespace-nowrap font-['Urbanist'] text-[20px] font-[600] leading-[24px] text-neutral-700 cursor-pointer hover:text-brand-600 transition-colors"
-                onClick={() => router.push(`/patients/${patient.id}`)}
+                onClick={() => router.push(`/patients/${createPatientSlug(patient.name, patient.id)}`)}
               >
                 {formatPatientNameForDisplay(patient.name)}
               </span>
@@ -76,7 +79,7 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
         const dateOfBirth = row.original.date_of_birth;
         return (
           <span className="whitespace-nowrap text-body-medium font-body-medium text-default-font">
-            {dateOfBirth ? new Date(dateOfBirth).toLocaleDateString('pt-BR') : 'N/A'}
+            {dateOfBirth ? formatDateWithTimezone(dateOfBirth) : 'N/A'}
           </span>
         );
       },
@@ -125,7 +128,7 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
         return (
           <div className="flex flex-col">
             <span className="whitespace-nowrap text-body-medium font-body-medium text-default-font">
-              {lastVisit ? new Date(lastVisit).toLocaleDateString('pt-BR') : 'Never'}
+              {lastVisit ? formatDateWithTimezone(lastVisit) : 'Never'}
             </span>
             {lastVisit && (
               <span className="text-xs text-neutral-500 mt-1">
@@ -175,7 +178,7 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
         return (
           <div className="flex flex-col">
             <span className="whitespace-nowrap text-body-medium font-body-medium text-default-font">
-              {patient.created_at ? new Date(patient.created_at).toLocaleDateString('pt-BR') : 'N/A'}
+              {patient.created_at ? formatDateWithTimezone(patient.created_at) : 'N/A'}
             </span>
           </div>
         );
@@ -231,7 +234,7 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
                   <DropdownMenu>
                     <DropdownMenu.DropdownItem 
                       icon={<FeatherEye />}
-                      onClick={() => router.push(`/patients/${patient.id}`)}
+                      onClick={() => router.push(`/patients/${createPatientSlug(patient.name, patient.id)}`)}
                     >
                       View Details
                     </DropdownMenu.DropdownItem>
@@ -257,5 +260,5 @@ export function usePatientColumns({ professionals, onEditPatient, onDeletePatien
       enableSorting: false,
       size: 60, // Minimum width for actions dropdown button
     },
-  ], [professionals, onEditPatient, onDeletePatient, router]);
+  ], [professionals, onEditPatient, onDeletePatient, router, formatDateWithTimezone]);
 }

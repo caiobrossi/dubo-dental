@@ -28,6 +28,7 @@ import {
 } from '../utils/timeUtils';
 import { useCurrentTimePosition } from '../hooks/useCurrentTimePosition';
 import { AppointmentPopover } from '@/components/custom/AppointmentPopover';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface SchedulingGridProps {
   selectedDate: Date;
@@ -59,6 +60,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
 }, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const { formatTime, getCurrentDateTime, settings } = useSettings();
   
   // Popover state
   const [popoverData, setPopoverData] = useState<{
@@ -86,8 +88,8 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
   );
   
   const displayDays = useMemo(() => 
-    generateDisplayDays(selectedDate, viewMode), 
-    [selectedDate, viewMode]
+    generateDisplayDays(selectedDate, viewMode, settings.weekStartsOn), 
+    [selectedDate, viewMode, settings.weekStartsOn]
   );
   
   const hours = useMemo(() => 
@@ -97,18 +99,18 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
 
 
   // Update time indicators every minute
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(getCurrentDateTime());
   
   useEffect(() => {
     const updateCurrentTime = () => {
-      setCurrentTime(new Date());
+      setCurrentTime(getCurrentDateTime());
     };
 
     updateCurrentTime();
     const interval = setInterval(updateCurrentTime, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [getCurrentDateTime]);
 
   // Recalculate positions when current time changes
   const updatedTimeIndicatorPositions = useMemo(() => {
@@ -158,7 +160,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
     const scrollTimeout = setTimeout(() => {
       const scrollContainer = (ref as React.RefObject<HTMLDivElement>)?.current || scrollContainerRef.current;
       if (scrollContainer) {
-        const now = new Date();
+        const now = getCurrentDateTime();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
         
@@ -215,7 +217,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
     }, 100); // 100ms delay to ensure rendering is complete
     
     return () => clearTimeout(scrollTimeout);
-  }, [hours, viewMode, selectedDate]);
+  }, [hours, viewMode, selectedDate, getCurrentDateTime]);
 
   // Function to calculate popover position for an appointment
   const calculatePopoverPosition = (appointment: Appointment, element: HTMLElement) => {
@@ -506,7 +508,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
                 className="flex h-20 w-full flex-none flex-col items-end gap-2 border-r border-b border-solid border-neutral-border px-2 py-1"
               >
                 <span className="text-[14px] font-normal text-subtext-color">
-                  {hour}:00
+                  {formatTime(`${hour}:00`)}
                 </span>
               </div>
             ))}
@@ -586,7 +588,7 @@ export const SchedulingGrid = forwardRef<HTMLDivElement, SchedulingGridProps>(({
               {activeAppointment.patient_name}
             </div>
             <div className="text-blue-600 text-xs">
-              {activeAppointment.start_time} - {activeAppointment.end_time}
+              {formatTime(activeAppointment.start_time)} - {formatTime(activeAppointment.end_time)}
             </div>
           </div>
         )}

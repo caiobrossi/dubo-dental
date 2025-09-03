@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { isToday } from '../utils/dateUtils';
+import { useSettings } from '@/contexts/SettingsContext';
 
 /**
  * Hook para calcular a posição da linha indicadora do horário atual
  */
 export const useCurrentTimePosition = (date: Date) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const { getCurrentDateTime, formatTime } = useSettings();
+  const [currentTime, setCurrentTime] = useState(getCurrentDateTime());
 
   // Atualiza o tempo atual a cada minuto
   useEffect(() => {
     const updateCurrentTime = () => {
-      setCurrentTime(new Date());
+      setCurrentTime(getCurrentDateTime());
     };
 
     // Atualizar imediatamente
@@ -28,7 +30,7 @@ export const useCurrentTimePosition = (date: Date) => {
       return null; // Não mostrar indicador se não for hoje
     }
 
-    const now = new Date();
+    const now = getCurrentDateTime();
     const hours = now.getHours();
     const minutes = now.getMinutes();
 
@@ -69,9 +71,9 @@ export const useCurrentTimePosition = (date: Date) => {
       top: topPosition,
       hour: hours,
       minute: minutes,
-      timeString: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+      timeString: formatTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
     };
-  }, [date, currentTime]);
+  }, [date, currentTime, getCurrentDateTime, formatTime]);
 
   return timeIndicatorPosition;
 };

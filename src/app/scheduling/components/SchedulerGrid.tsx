@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Appointment, BlockedTime, useScheduler, LAYOUT_CONSTANTS } from '../hooks/useScheduler';
 import { DayColumn } from './DayColumn';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface SchedulerGridProps {
   selectedDate: Date;
@@ -20,6 +21,7 @@ export const SchedulerGrid: React.FC<SchedulerGridProps> = ({
   onAppointmentClick
 }) => {
   const { hours } = useScheduler(appointments, blockedTimes);
+  const { formatTime } = useSettings();
 
   // Gerar dias baseado no modo de visualização
   const displayDays = useMemo(() => {
@@ -65,7 +67,7 @@ export const SchedulerGrid: React.FC<SchedulerGridProps> = ({
               style={{ height: `${LAYOUT_CONSTANTS.SLOT_HEIGHT}px` }}
             >
               <span className="text-[14px] font-normal text-subtext-color">
-                {hour}:00
+                {formatTime(`${hour}:00`)}
               </span>
             </div>
           ))}

@@ -52,7 +52,7 @@ const ChipsRoot = React.forwardRef<HTMLDivElement, ChipsRootProps>(
       >
         <span
           className={SubframeUtils.twClassNames(
-            "font-['Urbanist'] text-[18px] font-[600] leading-[20px] text-brand-700",
+            "font-['Urbanist'] text-[16px] font-[600] leading-[20px] text-brand-700",
             {
               "text-body-large-/-bold font-body-large-/-bold": size === "large",
               "text-success-800": variant === "success",
@@ -81,7 +81,7 @@ const ChipsRoot = React.forwardRef<HTMLDivElement, ChipsRootProps>(
         {iconRight ? (
           <SubframeCore.IconWrapper
             className={SubframeUtils.twClassNames(
-              "font-['Urbanist'] text-[18px] font-[600] leading-[20px] text-brand-700",
+              "font-['Urbanist'] text-[16px] font-[600] leading-[20px] text-brand-700",
               {
                 "text-body-large-/-bold font-body-large-/-bold":
                   size === "large",

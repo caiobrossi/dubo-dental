@@ -76,13 +76,19 @@ const CustomComponentRoot = React.forwardRef<
   return content ? (
     <div
       className={SubframeUtils.twClassNames(
-        "group/796b5fce flex h-40 cursor-pointer flex-col items-start justify-between rounded-rounded-xlarge border border-solid border-neutral-border bg-default-background px-4 py-4 hover:flex hover:h-40 hover:w-full hover:flex-col hover:flex-nowrap hover:items-start hover:justify-between hover:rounded-rounded-xlarge hover:border-2 hover:border-solid hover:border-new-white-100 hover:bg-neutral-50 hover:shadow-md",
+        "group/796b5fce flex min-h-[160px] w-full cursor-pointer flex-col items-start justify-between rounded-rounded-xlarge bg-neutral-50 px-4 py-4 hover:border-2 hover:border-solid hover:border-new-white-100 hover:bg-neutral-100 hover:shadow-md transition-all duration-200 relative overflow-hidden",
         className
       )}
       ref={ref}
       {...otherProps}
     >
-      {content}
+      {/* Gradient overlay that appears on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover/796b5fce:opacity-100 transition-opacity duration-200 pointer-events-none rounded-rounded-xlarge" />
+      
+      {/* Content with relative positioning to stay above gradient */}
+      <div className="relative z-10 flex flex-col items-start justify-between w-full h-full">
+        {content}
+      </div>
     </div>
   ) : null;
 });

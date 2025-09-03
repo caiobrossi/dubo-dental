@@ -89,11 +89,29 @@ export const CollapsedSidebar = React.forwardRef<HTMLElement, CollapsedSidebarPr
     
     // Use try-catch to handle context outside provider
     let toggleSidebar = () => {};
+    let isLoading = false;
     try {
       const sidebarContext = useSidebar();
       toggleSidebar = sidebarContext.toggleSidebar;
+      isLoading = sidebarContext.isLoading;
     } catch (e) {
       // Context not available, use empty function
+    }
+
+    // During loading, render with opacity to prevent flash
+    if (isLoading) {
+      return (
+        <nav
+          className={SubframeUtils.twClassNames(
+            "flex h-full w-16 flex-col items-center justify-between bg-neutral-50 border-r border-solid border-neutral-border opacity-0 transition-opacity duration-200",
+            className
+          )}
+          ref={ref}
+          {...otherProps}
+        >
+          {/* Empty during loading to prevent flash */}
+        </nav>
+      );
     }
 
     // Function to check if a path is active
@@ -115,7 +133,7 @@ export const CollapsedSidebar = React.forwardRef<HTMLElement, CollapsedSidebarPr
     return (
       <nav
         className={SubframeUtils.twClassNames(
-          "flex h-full w-16 flex-col items-center bg-neutral-50 border-r border-solid border-neutral-border py-4",
+          "flex h-full w-16 flex-col items-center bg-neutral-50 border-r border-solid border-neutral-border py-4 transition-opacity duration-200 opacity-100",
           className
         )}
         ref={ref}

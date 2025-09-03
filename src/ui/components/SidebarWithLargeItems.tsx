@@ -90,17 +90,35 @@ const SidebarWithLargeItemsRoot = React.forwardRef<
 ) {
   // Use try-catch to handle context outside provider
   let toggleSidebar = () => {};
+  let isLoading = false;
   try {
     const sidebarContext = useSidebar();
     toggleSidebar = sidebarContext.toggleSidebar;
+    isLoading = sidebarContext.isLoading;
   } catch (e) {
     // Context not available, use empty function
+  }
+
+  // During loading, render with opacity to prevent flash
+  if (isLoading) {
+    return (
+      <nav
+        className={SubframeUtils.twClassNames(
+          "flex h-full w-60 flex-col items-start bg-neutral-50 border-r border-solid border-neutral-border opacity-0 transition-opacity duration-200",
+          className
+        )}
+        ref={ref}
+        {...otherProps}
+      >
+        {/* Empty during loading to prevent flash */}
+      </nav>
+    );
   }
 
   return (
     <nav
       className={SubframeUtils.twClassNames(
-        "flex h-full w-60 flex-col items-start bg-neutral-50 border-r border-solid border-neutral-border",
+        "flex h-full w-60 flex-col items-start bg-neutral-50 border-r border-solid border-neutral-border transition-opacity duration-200 opacity-100",
         className
       )}
       ref={ref}
@@ -119,7 +137,7 @@ const SidebarWithLargeItemsRoot = React.forwardRef<
           className="p-2 rounded-md hover:bg-neutral-100 text-neutral-500 hover:text-neutral-700 transition-colors"
           title="Collapse sidebar"
         >
-          <FeatherPanelLeftClose className="text-[18px]" />
+          <FeatherPanelLeftClose className="text-[16px]" />
         </button>
       </div>
       

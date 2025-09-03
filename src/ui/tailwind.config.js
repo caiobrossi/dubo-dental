@@ -127,7 +127,7 @@ module.exports = {
           },
         ],
         "body-large": [
-          "18px",
+          "16px",
           {
             lineHeight: "20px",
             fontWeight: "400",
@@ -159,7 +159,7 @@ module.exports = {
           },
         ],
         "monospace-body": [
-          "18px",
+          "16px",
           {
             lineHeight: "20px",
             fontWeight: "400",
@@ -191,7 +191,7 @@ module.exports = {
           },
         ],
         "body-large-/-bold": [
-          "18px",
+          "16px",
           {
             lineHeight: "20px",
             fontWeight: "600",

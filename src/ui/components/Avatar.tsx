@@ -56,7 +56,7 @@ const AvatarRoot = React.forwardRef<HTMLDivElement, AvatarRootProps>(
               {
                 "font-['Inter'] text-[10px] font-[500] leading-[10px] tracking-normal":
                   size === "x-small" || size === "small",
-                "font-['Inter'] text-[18px] font-[500] leading-[18px] tracking-normal":
+                "font-['Inter'] text-[16px] font-[500] leading-[16px] tracking-normal":
                   size === "large",
                 "font-['Inter'] text-[24px] font-[500] leading-[24px] tracking-normal":
                   size === "x-large",

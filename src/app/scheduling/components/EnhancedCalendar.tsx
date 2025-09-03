@@ -17,6 +17,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/ui/components/Button';
 import { supabase } from '@/lib/supabase';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface EnhancedCalendarProps {
   selectedDate: Date;
@@ -38,16 +39,27 @@ export const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   onClose,
   professionalId = 'all'
 }) => {
+  const { settings } = useSettings();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Get weekStartsOn value based on settings
+  const weekStartsOn = useMemo(() => {
+    switch(settings.weekStartsOn) {
+      case 'Sunday': return 0;
+      case 'Monday': return 1;
+      case 'Saturday': return 6;
+      default: return 1;
+    }
+  }, [settings.weekStartsOn]);
+
   // Calculate the week range for the selected date
   const weekDays = useMemo(() => {
-    const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
-    const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
+    const start = startOfWeek(selectedDate, { weekStartsOn });
+    const end = endOfWeek(selectedDate, { weekStartsOn });
     return eachDayOfInterval({ start, end });
-  }, [selectedDate]);
+  }, [selectedDate, weekStartsOn]);
 
   // Fetch availability data for visible months
   useEffect(() => {
@@ -314,7 +326,7 @@ export const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
           onSelect={handleDayClick}
           month={currentMonth}
           numberOfMonths={2}
-          weekStartsOn={1}
+          weekStartsOn={weekStartsOn as 0 | 1 | 6}
           showOutsideDays={false}
           modifiers={modifiers}
           modifiersStyles={modifiersStyles}

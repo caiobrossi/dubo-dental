@@ -31,7 +31,7 @@ const CalendarRoot = React.forwardRef<
           "inline-flex items-center justify-center h-8 w-8 bg-transparent rounded border-none bg-transparent hover:bg-neutral-50 active:bg-neutral-100 border-none",
         button_next:
           "inline-flex items-center justify-center h-8 w-8 bg-transparent rounded border-none bg-transparent hover:bg-neutral-50 active:bg-neutral-100 border-none",
-        chevron: "text-[18px] font-[500] leading-[18px] text-neutral-600",
+        chevron: "text-[16px] font-[500] leading-[16px] text-neutral-600",
         weeks: "flex flex-col gap-2",
         weekdays: "flex pb-4",
         weekday: "w-8 text-caption-bold font-caption-bold text-subtext-color",

@@ -15,6 +15,7 @@ import { supabase, Patient, Professional } from "@/lib/supabase";
 import { SearchableSelect } from "./SearchableSelect";
 import { preparePatientNameForStorage } from "@/app/scheduling/utils/nameUtils";
 import { Appointment, BlockedTime } from "@/app/scheduling/types";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface NewAppointmentModalProps {
   open: boolean;

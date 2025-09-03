@@ -18,12 +18,14 @@ import { FeatherMail } from "@subframe/core";
 import { FeatherPhone } from "@subframe/core";
 import { FeatherPlus } from "@subframe/core";
 import { FeatherSend } from "@subframe/core";
+import { useSettings } from "@/contexts/SettingsContext";
 import { FeatherSmartphone } from "@subframe/core";
 import { FeatherTrash } from "@subframe/core";
 import { FeatherArrowLeft } from "@subframe/core";
 import * as SubframeCore from "@subframe/core";
 import { supabase } from "@/lib/supabase";
 import { formatPatientNameForDisplay } from "@/app/scheduling/utils/nameUtils";
+import { createPatientSlug, parsePatientSlug } from "@/utils/patientSlug";
 import AddPatientModal from "@/components/custom/AddPatientModal";
 import AddToGroupModal from "@/components/custom/AddToGroupModal";
 
@@ -83,7 +85,8 @@ const defaultPatientData: PatientData = {
 function PatientInfo() {
   const params = useParams();
   const router = useRouter();
-  const patientId = params?.patientId as string;
+  const patientSlug = params?.patientId as string;
+  const { formatDate } = useSettings();
   
   const [patientData, setPatientData] = useState<PatientData>(defaultPatientData);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -94,17 +97,71 @@ function PatientInfo() {
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [currentPatient, setCurrentPatient] = useState<any>(null);
   const [patientGroups, setPatientGroups] = useState<{id: string, name: string}[]>([]);
+  const [actualPatientId, setActualPatientId] = useState<string | null>(null);
 
   // Load patient data from Supabase
   useEffect(() => {
     const fetchPatientData = async () => {
-      if (!patientId) {
+      if (!patientSlug) {
         router.push('/patients');
         return;
       }
 
       try {
-        // Fetch patient data from Supabase with groups
+        // Convert slug back to name and potential ID
+        const slugData = parsePatientSlug(patientSlug);
+        
+        let patientId: string;
+        
+        // If we have an ID in the slug, try to find by ID first
+        if (slugData.id) {
+          const { data: patientById, error: idError } = await supabase
+            .from('patients')
+            .select('id, name')
+            .ilike('id', `${slugData.id}%`)
+            .single();
+          
+          if (patientById && !idError) {
+            patientId = patientById.id;
+          } else {
+            // Fallback to name search
+            const { data: patients, error: searchError } = await supabase
+              .from('patients')
+              .select('id, name')
+              .ilike('name', `%${slugData.name}%`);
+            
+            if (searchError || !patients || patients.length === 0) {
+              console.error('Patient not found:', searchError);
+              router.push('/patients');
+              return;
+            }
+            
+            patientId = patients[0].id;
+          }
+        } else {
+          // No ID in slug, search by name only
+          const { data: patients, error: searchError } = await supabase
+            .from('patients')
+            .select('id, name')
+            .ilike('name', `%${slugData.name}%`);
+          
+          if (searchError || !patients || patients.length === 0) {
+            console.error('Patient not found:', searchError);
+            router.push('/patients');
+            return;
+          }
+          
+          // Find exact match or closest match
+          const exactMatch = patients.find(p => 
+            createPatientSlug(p.name, p.id) === patientSlug
+          );
+          
+          patientId = exactMatch?.id || patients[0].id;
+        }
+        
+        setActualPatientId(patientId);
+
+        // Fetch full patient data from Supabase with groups
         const { data: patient, error } = await supabase
           .from('patients')
           .select(`
@@ -166,7 +223,7 @@ function PatientInfo() {
           gender: patient.gender === 'male' ? 'Male' : patient.gender === 'female' ? 'Female' : 'Rather not say',
           age: calculateAge(patient.date_of_birth),
           patientId: patient.id?.substring(0, 8) || 'N/A',
-          dateOfBirth: patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString('en-GB') : 'Not provided',
+          dateOfBirth: patient.date_of_birth ? formatDate(new Date(patient.date_of_birth)) : 'Not provided',
           preferredLanguage: patient.preferred_language || 'English',
           clinicBranch: patient.clinic_branch || 'Main Branch',
           referralBy: patient.referral_source || 'Direct',
@@ -180,7 +237,7 @@ function PatientInfo() {
           insurancePlan: patient.insurance_plan || 'Not provided',
           insuranceName: patient.insurance_name || 'Not provided',
           insuranceId: patient.insurance_id || 'Not provided',
-          insuranceValidUntil: patient.insurance_valid_until ? new Date(patient.insurance_valid_until).toLocaleDateString('en-GB') : 'Not provided',
+          insuranceValidUntil: patient.insurance_valid_until ? formatDate(new Date(patient.insurance_valid_until)) : 'Not provided',
           professionalAssigned: patient.professionals?.name || 'Not assigned',
           patientGroups: multipleGroups.length > 0 ? multipleGroups.join(', ') : (patient.patient_groups?.name || 'No groups'),
           familyMembers: 'Not available',
@@ -199,13 +256,13 @@ function PatientInfo() {
     };
 
     fetchPatientData();
-  }, [patientId, router]);
+  }, [patientSlug, router]);
 
   // Function to refresh patient data after edit
   const handlePatientUpdated = async () => {
     console.log('handlePatientUpdated called'); // Debug log
     
-    if (!patientId) return;
+    if (!actualPatientId) return;
 
     try {
       // Fetch patient data
@@ -222,7 +279,7 @@ function PatientInfo() {
             name
           )
         `)
-        .eq('id', patientId)
+        .eq('id', actualPatientId)
         .single();
 
       if (error || !patient) {
@@ -239,7 +296,7 @@ function PatientInfo() {
             name
           )
         `)
-        .eq('patient_id', patientId);
+        .eq('patient_id', actualPatientId);
 
       console.log('Fetched memberships:', memberships); // Debug log
 
@@ -274,7 +331,7 @@ function PatientInfo() {
         gender: patient.gender === 'male' ? 'Male' : patient.gender === 'female' ? 'Female' : 'Rather not say',
         age: calculateAge(patient.date_of_birth),
         patientId: patient.id?.substring(0, 8) || 'N/A',
-        dateOfBirth: patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString('en-GB') : 'Not provided',
+        dateOfBirth: patient.date_of_birth ? formatDate(new Date(patient.date_of_birth)) : 'Not provided',
         preferredLanguage: patient.preferred_language || 'English',
         clinicBranch: patient.clinic_branch || 'Main Branch',
         referralBy: patient.referral_source || 'Direct',
@@ -288,7 +345,7 @@ function PatientInfo() {
         insurancePlan: patient.insurance_plan || 'Not provided',
         insuranceName: patient.insurance_name || 'Not provided',
         insuranceId: patient.insurance_id || 'Not provided',
-        insuranceValidUntil: patient.insurance_valid_until ? new Date(patient.insurance_valid_until).toLocaleDateString('en-GB') : 'Not provided',
+        insuranceValidUntil: patient.insurance_valid_until ? formatDate(new Date(patient.insurance_valid_until)) : 'Not provided',
         professionalAssigned: patient.professionals?.name || 'Not assigned',
         patientGroups: multipleGroups.length > 0 ? multipleGroups.join(', ') : (patient.patient_groups?.name || 'No groups'),
         familyMembers: 'Not available',
@@ -318,7 +375,7 @@ function PatientInfo() {
       const { error } = await supabase
         .from('patient_group_memberships')
         .delete()
-        .eq('patient_id', patientId)
+        .eq('patient_id', actualPatientId)
         .eq('group_id', groupId);
 
       if (error) throw error;
@@ -328,7 +385,7 @@ function PatientInfo() {
         const { error: legacyError } = await supabase
           .from('patients')
           .update({ group_id: null })
-          .eq('id', patientId);
+          .eq('id', actualPatientId);
 
         if (legacyError) {
           console.error('Error updating legacy group:', legacyError);
@@ -363,7 +420,7 @@ function PatientInfo() {
         const { error } = await supabase
           .from('patients')
           .update({ quick_notes: updatedNotes })
-          .eq('id', patientId);
+          .eq('id', actualPatientId);
         
         if (error) {
           console.error('Error saving note:', error);
@@ -391,7 +448,7 @@ function PatientInfo() {
       const { error } = await supabase
         .from('patients')
         .update({ quick_notes: updatedNotes })
-        .eq('id', patientId);
+        .eq('id', actualPatientId);
       
       if (error) {
         console.error('Error deleting note:', error);
@@ -525,19 +582,19 @@ function PatientInfo() {
                 </SegmentControl.Item>
                 <SegmentControl.Item 
                   active={activeSegment === "anamnese"}
-                  onClick={() => setActiveSegment("anamnese")}
+                  onClick={() => router.push(`/patients/${patientSlug}/anamnese`)}
                 >
                   Anamnese
                 </SegmentControl.Item>
                 <SegmentControl.Item 
                   active={activeSegment === "charting"}
-                  onClick={() => setActiveSegment("charting")}
+                  onClick={() => router.push(`/patients/${patientSlug}/charting`)}
                 >
                   Charting
                 </SegmentControl.Item>
                 <SegmentControl.Item 
                   active={activeSegment === "treatments"}
-                  onClick={() => setActiveSegment("treatments")}
+                  onClick={() => router.push(`/patients/${patientSlug}/treatments`)}
                 >
                   Treatments
                 </SegmentControl.Item>

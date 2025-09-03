@@ -2,6 +2,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Appointment, AppointmentLayout, LAYOUT_CONSTANTS, timeUtils } from '../hooks/useScheduler';
 import { AppointmentStatus } from '../types';
+import { useSettings } from '@/contexts/SettingsContext';
 
 // Configuração avançada de cores e estilos para cada status
 const getStatusStyles = (status: AppointmentStatus) => {
@@ -114,6 +115,8 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   layout,
   onClick
 }) => {
+  const { formatTime } = useSettings();
+  
   const {
     attributes,
     listeners,
@@ -204,7 +207,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
       className={`${styles.bg} ${styles.border} px-2 py-1 text-xs absolute shadow-sm cursor-pointer ${styles.hover} transition-all duration-300 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={style}
       onClick={handleClick}
-      title={`${appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'} - ${timeUtils.formatTimeWithoutSeconds(appointment.start_time)} - ${timeUtils.formatTimeWithoutSeconds(appointment.end_time)} - ${appointment.status?.toUpperCase()}`}
+      title={`${appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'} - ${formatTime(appointment.start_time)} - ${formatTime(appointment.end_time)} - ${appointment.status?.toUpperCase()}`}
       {...attributes}
       {...listeners}
     >
@@ -220,7 +223,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               {appointment.patient_name ? capitalizeName(appointment.patient_name) : 'No name'}
             </div>
             <div className={`${styles.textSecondary} text-xs leading-tight whitespace-nowrap`}>
-              {timeUtils.formatTimeWithoutSeconds(appointment.start_time)} - {timeUtils.formatTimeWithoutSeconds(appointment.end_time)}
+              {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}
             </div>
           </div>
           {/* Segunda linha: Procedimentos */}
@@ -239,7 +242,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           {/* Se houver espaço vertical, mostrar o horário abaixo */}
           {layout.height > 30 && (
             <div className={`${styles.textSecondary} text-xs leading-tight truncate mt-0.5`}>
-              {timeUtils.formatTimeWithoutSeconds(appointment.start_time)}
+              {formatTime(appointment.start_time)}
             </div>
           )}
         </>
