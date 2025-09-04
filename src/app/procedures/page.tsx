@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import CurrencyInput from 'react-currency-input-field';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useReactTable,
   getCoreRowModel,
@@ -28,6 +28,7 @@ import {
   FeatherArrowUp,
   FeatherArrowDown,
   FeatherChevronDown,
+  FeatherFileText,
   FeatherSearch,
   FeatherX
 } from "@subframe/core";
@@ -35,6 +36,13 @@ import * as SubframeCore from "@subframe/core";
 import { DropdownMenu } from "@/ui/components/DropdownMenu";
 import { useProcedures } from '@/hooks/useProcedures';
 import { useToast } from '@/contexts/ToastContext';
+import { supabase } from '@/lib/supabase/client';
+import { useSettings } from '@/contexts/SettingsContext';
+
+// Import export libraries
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 // Categories for procedures
 const PROCEDURE_CATEGORIES = [
@@ -55,13 +63,9 @@ const PROCEDURE_CATEGORIES = [
   'Injectables'
 ] as const;
 
-// Time options for procedures
-const TIME_OPTIONS = [
-  '15min', '30min', '45min', '60min', '90min', '120min', '150min', '180min'
-];
-
 interface NewProcedure {
   name: string;
+  procedure_code: string;
   category: string;
   price: number;
   estimated_time: string;
@@ -71,6 +75,7 @@ interface NewProcedure {
 interface ProcedureRow {
   id: string;
   name: string;
+  procedure_code: string;
   category: string;
   price: number;
   estimated_time: string;
@@ -79,19 +84,58 @@ interface ProcedureRow {
 
 const INITIAL_NEW_PROCEDURE: NewProcedure = {
   name: '',
+  procedure_code: '',
   category: 'Others',
   price: 0,
-  estimated_time: '30min',
+  estimated_time: '00:30',
   is_active: true
 };
 
 const columnHelper = createColumnHelper<ProcedureRow>();
 
-export default function PrivatePlanDetailedPage() {
+export default function ProceduresPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const planName = searchParams.get('planId');
   const { showError, showSuccess } = useToast();
+  const { settings, formatCurrency } = useSettings();
   
-  // Get procedures data
+  // Currency symbols mapping
+  const currencySymbols = {
+    'EUR': '€',
+    'USD': '$',
+    'BRL': 'R$',
+    'GBP': '£'
+  };
+  
+  // State to store the actual plan ID
+  const [actualPlanId, setActualPlanId] = useState<string | null>(null);
+  
+  // Import supabase to find the plan ID
+  useEffect(() => {
+    const fetchPlanId = async () => {
+      if (!planName) {
+        // If no plan name in URL, use Private Plan as default
+        const { data } = await supabase
+          .from('insurance_plans')
+          .select('id')
+          .eq('type', 'private')
+          .single();
+        if (data) setActualPlanId(data.id);
+      } else {
+        // Find plan by name
+        const { data } = await supabase
+          .from('insurance_plans')
+          .select('id')
+          .eq('name', planName)
+          .single();
+        if (data) setActualPlanId(data.id);
+      }
+    };
+    fetchPlanId();
+  }, [planName]);
+  
+  // Get procedures data - now using the correct plan ID
   const {
     procedures,
     loading,
@@ -102,9 +146,9 @@ export default function PrivatePlanDetailedPage() {
     duplicateProcedure,
     checkNameExists,
     clearError
-  } = useProcedures('0347433a-73cb-4933-83ae-16cfcd989fca'); // Private Plan ID
+  } = useProcedures(actualPlanId || undefined);
 
-  // Local state
+  // Local state - SIMPLE APPROACH
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [newProcedure, setNewProcedure] = useState<NewProcedure>(INITIAL_NEW_PROCEDURE);
@@ -112,14 +156,7 @@ export default function PrivatePlanDetailedPage() {
   const [editingProcedures, setEditingProcedures] = useState<Record<string, any>>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isCreating, setIsCreating] = useState(false);
-
-  // Use ref to avoid re-renders on editingProcedures changes
-  const editingProceduresRef = useRef(editingProcedures);
-  
-  // Keep ref updated
-  useEffect(() => {
-    editingProceduresRef.current = editingProcedures;
-  }, [editingProcedures]);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   // Handle navigation
   const handleBack = useCallback(() => {
@@ -171,8 +208,12 @@ export default function PrivatePlanDetailedPage() {
   }, []);
 
   // Handle adding a new procedure
-  
   const handleAddProcedure = useCallback(async () => {
+    if (!actualPlanId) {
+      showError('Please wait while loading plan information');
+      return;
+    }
+    
     if (!newProcedure.name.trim()) {
       showError('Please enter a procedure name');
       return;
@@ -186,7 +227,7 @@ export default function PrivatePlanDetailedPage() {
       setIsCreating(true);
       
       // Check if name already exists first
-      const nameExists = await checkNameExists(newProcedure.name, '0347433a-73cb-4933-83ae-16cfcd989fca');
+      const nameExists = await checkNameExists(newProcedure.name, actualPlanId!);
       
       if (nameExists) {
         showError('A procedure with this name already exists for this plan');
@@ -195,7 +236,7 @@ export default function PrivatePlanDetailedPage() {
       
       const result = await addProcedure({
         ...newProcedure,
-        insurance_plan_id: '0347433a-73cb-4933-83ae-16cfcd989fca'
+        insurance_plan_id: actualPlanId!
       });
 
       if (result) {
@@ -213,9 +254,9 @@ export default function PrivatePlanDetailedPage() {
     } finally {
       setIsCreating(false);
     }
-  }, [newProcedure, addProcedure, checkNameExists, error, showError, isCreating]);
+  }, [actualPlanId, newProcedure, addProcedure, checkNameExists, error, showError, isCreating, showSuccess]);
 
-  // Handle procedure field changes
+  // SUPER SIMPLE: Just save changes, no complex re-render logic
   const handleProcedureChange = useCallback((procedureId: string, field: string, value: any) => {
     setEditingProcedures(prev => ({
       ...prev,
@@ -227,16 +268,14 @@ export default function PrivatePlanDetailedPage() {
     setHasUnsavedChanges(true);
   }, []);
 
-  // Get procedure value (from editing state or original)
-  const getProcedureValue = useCallback((procedureId: string, field: string, defaultValue: any) => {
-    // Use a ref to access current editingProcedures without causing re-renders
-    const editingProcs = editingProceduresRef.current || editingProcedures;
-    if (editingProcs[procedureId] && field in editingProcs[procedureId]) {
-      return editingProcs[procedureId][field];
+  // SIMPLE: Get current value for display - just check if active
+  const getProcedureActiveState = useCallback((procedureId: string) => {
+    if (editingProcedures[procedureId] && 'is_active' in editingProcedures[procedureId]) {
+      return editingProcedures[procedureId].is_active;
     }
     const procedure = procedures.find(p => p.id === procedureId);
-    return procedure ? procedure[field] : defaultValue;
-  }, [procedures]);
+    return procedure ? procedure.is_active : true;
+  }, [editingProcedures, procedures]);
 
   // Handle save changes
   const handleSaveChanges = useCallback(async () => {
@@ -286,28 +325,118 @@ export default function PrivatePlanDetailedPage() {
     }
   }, [duplicateProcedure]);
 
-  // Format price for display
-  const formatPrice = (price: number) => {
-    return price.toFixed(2);
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: '2-digit', 
+      day: '2-digit', 
+      year: 'numeric' 
+    });
   };
 
-  // Parse price from input
-  const parsePrice = (value: string) => {
-    const parsed = parseFloat(value.replace(/[^0-9.]/g, ''));
-    return isNaN(parsed) ? 0 : parsed;
-  };
+  // Export functions
+  const exportToPDF = useCallback(() => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text(`${planName || 'Insurance'} Procedures Report`, 20, 20);
+    
+    // Add date
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
+    
+    // Use filtered procedures
+    const visibleData = filteredProcedures;
+    
+    // Prepare data for table
+    const tableData = visibleData.map(procedure => [
+      procedure.procedure_code || '',
+      procedure.name,
+      procedure.category || '',
+      `${currencySymbols[settings.currencyFormat] || '$'}${procedure.price?.toFixed(2) || '0.00'}`,
+      procedure.estimated_time || '',
+      procedure.is_active ? 'Active' : 'Inactive'
+    ]);
+    
+    // Add table
+    autoTable(doc, {
+      head: [['Code', 'Procedure', 'Category', 'Price', 'Est. Time', 'Status']],
+      body: tableData,
+      startY: 40,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [64, 64, 64] },
+    });
+    
+    // Save PDF
+    doc.save(`${planName || 'procedures'}-${new Date().toISOString().split('T')[0]}.pdf`);
+  }, [planName, filteredProcedures, currencySymbols, settings.currencyFormat]);
 
-  // Define columns for TanStack Table
+  const exportToExcel = useCallback(() => {
+    // Use filtered procedures
+    const visibleData = filteredProcedures;
+    
+    // Prepare data for Excel
+    const excelData = visibleData.map(procedure => ({
+      'Procedure Code': procedure.procedure_code || '',
+      'Procedure Name': procedure.name,
+      'Category': procedure.category || '',
+      'Price': procedure.price || 0,
+      'Estimated Time': procedure.estimated_time || '',
+      'Status': procedure.is_active ? 'Active' : 'Inactive',
+      'Created At': formatDate(procedure.created_at || ''),
+      'Updated At': formatDate(procedure.updated_at || ''),
+    }));
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Procedures');
+    
+    // Save Excel file
+    XLSX.writeFile(wb, `${planName || 'procedures'}-${new Date().toISOString().split('T')[0]}.xlsx`);
+  }, [planName, filteredProcedures]);
+
+  // SIMPLE COLUMNS: No fancy logic, just basic inputs
   const columns = useMemo(() => [
     columnHelper.accessor('is_active', {
       header: 'Active',
       size: 80,
-      cell: ({ row }) => (
-        <Switch
-          checked={getProcedureValue(row.original.id, 'is_active', true)}
-          onCheckedChange={(checked) => handleProcedureChange(row.original.id, 'is_active', checked)}
-        />
-      ),
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        
+        return (
+          <Switch
+            checked={isActive}
+            onCheckedChange={(checked) => handleProcedureChange(row.original.id, 'is_active', checked)}
+          />
+        );
+      },
+    }),
+    columnHelper.accessor('procedure_code', {
+      header: 'Procedure code',
+      size: 200,
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        return (
+          <input
+            key={`code-${row.original.id}`}
+            type="text"
+            defaultValue={row.original.procedure_code || ''}
+            onChange={(e) => handleProcedureChange(row.original.id, 'procedure_code', e.target.value)}
+            placeholder="Enter code"
+            disabled={!isActive}
+            className={`w-full px-3 py-2 border rounded-sm ${
+              !isActive 
+                ? 'bg-gray-100 cursor-not-allowed opacity-60 text-neutral-400' 
+                : 'bg-gray-50 text-neutral-900'
+            } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+          />
+        );
+      },
     }),
     columnHelper.accessor('name', {
       header: ({ column }) => {
@@ -323,19 +452,24 @@ export default function PrivatePlanDetailedPage() {
           </button>
         );
       },
-      cell: ({ row }) => (
-        <TextField
-          variant="filled"
-          className="w-full"
-        >
-          <TextField.Input
-            id={`name-${row.original.id}`}
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        return (
+          <input
             key={`name-${row.original.id}`}
-            value={getProcedureValue(row.original.id, 'name', '')}
+            type="text"
+            defaultValue={row.original.name}
             onChange={(e) => handleProcedureChange(row.original.id, 'name', e.target.value)}
+            placeholder="Enter procedure name"
+            disabled={!isActive}
+            className={`w-full px-3 py-2 border rounded-sm ${
+              !isActive 
+                ? 'bg-gray-100 cursor-not-allowed opacity-60 text-neutral-400' 
+                : 'bg-gray-50 text-neutral-900'
+            } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
           />
-        </TextField>
-      ),
+        );
+      },
     }),
     columnHelper.accessor('category', {
       header: ({ column }) => {
@@ -353,20 +487,25 @@ export default function PrivatePlanDetailedPage() {
       },
       size: 300,
       minSize: 300,
-      cell: ({ row }) => (
-        <Select
-          variant="filled"
-          className="w-full"
-          value={getProcedureValue(row.original.id, 'category', 'Others')}
-          onValueChange={(value) => handleProcedureChange(row.original.id, 'category', value)}
-        >
-          {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
-            <Select.Item key={category} value={category}>
-              {category}
-            </Select.Item>
-          ))}
-        </Select>
-      ),
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        return (
+          <Select
+            key={`category-${row.original.id}`}
+            variant="filled"
+            className={`w-full ${!isActive ? '[&_*]:text-neutral-400' : ''}`}
+            defaultValue={row.original.category}
+            onValueChange={(value) => handleProcedureChange(row.original.id, 'category', value)}
+            disabled={!isActive}
+          >
+            {PROCEDURE_CATEGORIES.filter(cat => cat !== 'All').map(category => (
+              <Select.Item key={category} value={category}>
+                {category}
+              </Select.Item>
+            ))}
+          </Select>
+        );
+      },
     }),
     columnHelper.accessor('price', {
       header: ({ column }) => {
@@ -383,89 +522,107 @@ export default function PrivatePlanDetailedPage() {
         );
       },
       size: 120,
-      cell: ({ row }) => (
-        <CurrencyInput
-          id={`price-${row.original.id}`}
-          key={`price-${row.original.id}`}
-          placeholder="$0.00"
-          defaultValue={getProcedureValue(row.original.id, 'price', 0)}
-          decimalsLimit={2}
-          decimalSeparator="."
-          groupSeparator=","
-          prefix="$"
-          allowDecimals={true}
-          allowNegativeValue={false}
-          disableGroupSeparators={false}
-          className="w-full px-3 py-2 border rounded-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          onValueChange={(value) => {
-            const numericValue = value ? parseFloat(value) : 0;
-            handleProcedureChange(row.original.id, 'price', numericValue);
-          }}
-        />
-      ),
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        const symbol = currencySymbols[settings.currencyFormat] || '$';
+        const placeholder = `${symbol}0.00`;
+        
+        return (
+          <CurrencyInput
+            key={`price-${row.original.id}`}
+            placeholder={placeholder}
+            defaultValue={row.original.price}
+            decimalsLimit={2}
+            decimalSeparator="."
+            groupSeparator=","
+            prefix={symbol + " "}
+            allowDecimals={true}
+            allowNegativeValue={false}
+            disableGroupSeparators={false}
+            className={`w-full px-3 py-2 border rounded-sm ${!isActive ? 'bg-gray-100 cursor-not-allowed opacity-60 text-neutral-400' : 'bg-gray-50 text-neutral-900'} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+            onValueChange={(value) => {
+              if (!isActive) return;
+              const numericValue = value ? parseFloat(value) : 0;
+              handleProcedureChange(row.original.id, 'price', numericValue);
+            }}
+            disabled={!isActive}
+          />
+        );
+      },
     }),
     columnHelper.accessor('estimated_time', {
       header: 'Estimated time',
       size: 150,
-      cell: ({ row }) => (
-        <Select
-          variant="filled"
-          className="w-full"
-          value={getProcedureValue(row.original.id, 'estimated_time', '30min')}
-          onValueChange={(value) => handleProcedureChange(row.original.id, 'estimated_time', value)}
-        >
-          {TIME_OPTIONS.map(time => (
-            <Select.Item key={time} value={time}>
-              {time}
-            </Select.Item>
-          ))}
-        </Select>
-      ),
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        return (
+          <input
+            key={`time-${row.original.id}`}
+            type="time"
+            defaultValue={row.original.estimated_time}
+            onChange={(e) => handleProcedureChange(row.original.id, 'estimated_time', e.target.value)}
+            step="300"
+            disabled={!isActive}
+            className={`w-full px-3 py-2 border rounded-sm ${
+              !isActive 
+                ? 'bg-gray-100 cursor-not-allowed opacity-60 text-neutral-400' 
+                : 'bg-gray-50 text-neutral-900'
+            } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+          />
+        );
+      },
     }),
     columnHelper.display({
       id: 'actions',
       size: 80,
-      cell: ({ row }) => (
-        <SubframeCore.DropdownMenu.Root>
-          <SubframeCore.DropdownMenu.Trigger asChild>
-            <IconButton
-              variant="neutral-tertiary"
-              size="small"
-              icon={<FeatherMoreHorizontal />}
-            />
-          </SubframeCore.DropdownMenu.Trigger>
-          <SubframeCore.DropdownMenu.Portal>
-            <SubframeCore.DropdownMenu.Content
-              side="bottom"
-              align="end"
-              sideOffset={4}
-              asChild
-            >
-              <DropdownMenu>
-                <DropdownMenu.DropdownItem
-                  icon="FeatherCopy"
-                  onClick={() => handleDuplicate(row.original.id)}
-                >
-                  Duplicate
-                </DropdownMenu.DropdownItem>
-                <DropdownMenu.DropdownItem
-                  icon="FeatherTrash"
-                  onClick={() => handleDelete(row.original.id)}
-                >
-                  Delete
-                </DropdownMenu.DropdownItem>
+      cell: ({ row }) => {
+        const isActive = getProcedureActiveState(row.original.id);
+        return (
+          <SubframeCore.DropdownMenu.Root>
+            <SubframeCore.DropdownMenu.Trigger asChild>
+              <IconButton
+                variant="neutral-tertiary"
+                size="small"
+                icon={<FeatherMoreHorizontal />}
+                disabled={!isActive}
+              />
+            </SubframeCore.DropdownMenu.Trigger>
+            <SubframeCore.DropdownMenu.Portal>
+              <SubframeCore.DropdownMenu.Content
+                side="bottom"
+                align="end"
+                sideOffset={4}
+                asChild
+              >
+                <DropdownMenu>
+                  <DropdownMenu.DropdownItem
+                    icon="FeatherCopy"
+                    onClick={() => handleDuplicate(row.original.id)}
+                    disabled={!isActive}
+                  >
+                    Duplicate
+                  </DropdownMenu.DropdownItem>
+                  <DropdownMenu.DropdownItem
+                    icon="FeatherTrash"
+                    onClick={() => handleDelete(row.original.id)}
+                    disabled={!isActive}
+                  >
+                    Delete
+                  </DropdownMenu.DropdownItem>
               </DropdownMenu>
             </SubframeCore.DropdownMenu.Content>
           </SubframeCore.DropdownMenu.Portal>
         </SubframeCore.DropdownMenu.Root>
-      ),
+        );
+      },
     }),
-  ], [handleProcedureChange, handleDuplicate, handleDelete]);
+  ], [handleProcedureChange, handleDuplicate, handleDelete, getProcedureActiveState, settings.currencyFormat, currencySymbols, editingProcedures]);
 
   // Create table instance
   const table = useReactTable({
     data: filteredProcedures as ProcedureRow[],
     columns,
+    getRowId: (row) => row.id,
     state: {
       sorting,
     },
@@ -485,12 +642,12 @@ export default function PrivatePlanDetailedPage() {
             icon={<FeatherArrowLeft />}
             onClick={handleBack}
           />
-          <h1 className="text-xl font-semibold text-neutral-900">Private plan</h1>
+          <h1 className="text-xl font-semibold text-neutral-900">{planName || 'Private plan'}</h1>
         </div>
         
         <Button
           variant="brand-primary"
-          size="medium"
+          size="large"
           onClick={handleSaveChanges}
           disabled={!hasUnsavedChanges}
         >
@@ -539,14 +696,51 @@ export default function PrivatePlanDetailedPage() {
         </div>
         
         <div className="flex items-center gap-4">
-          <Button
-            variant="neutral-secondary"
-            size="large"
-            icon={<FeatherDownload />}
-            onClick={() => alert('Export functionality coming soon')}
-          >
-            Export as
-          </Button>
+          <div className="relative">
+            <Button
+              variant="neutral-secondary"
+              size="large"
+              icon={<FeatherDownload />}
+              iconRight={<FeatherChevronDown />}
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+            >
+              Export as
+            </Button>
+            
+            {/* Custom dropdown menu */}
+            {showExportDropdown && (
+              <div className="absolute right-0 top-12 bg-white border border-neutral-200 rounded-lg shadow-lg py-2 z-10" style={{ minWidth: '160px' }}>
+                <button
+                  onClick={() => {
+                    exportToPDF();
+                    setShowExportDropdown(false);
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-neutral-50 flex items-center gap-2 text-sm"
+                >
+                  <FeatherFileText className="w-4 h-4" />
+                  Export as PDF
+                </button>
+                <button
+                  onClick={() => {
+                    exportToExcel();
+                    setShowExportDropdown(false);
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-neutral-50 flex items-center gap-2 text-sm"
+                >
+                  <FeatherDownload className="w-4 h-4" />
+                  Export as Excel
+                </button>
+              </div>
+            )}
+            
+            {/* Backdrop to close dropdown when clicking outside */}
+            {showExportDropdown && (
+              <div 
+                className="fixed inset-0 z-0" 
+                onClick={() => setShowExportDropdown(false)}
+              />
+            )}
+          </div>
           <Button
             variant="neutral-secondary"
             size="large"
@@ -593,6 +787,10 @@ export default function PrivatePlanDetailedPage() {
               {/* Active */}
               <div className="px-4 py-3 text-left text-sm font-medium text-neutral-900 first:pl-6" style={{ width: '80px', flex: '0 0 80px' }}>
                 Active
+              </div>
+              {/* Procedure code */}
+              <div className="px-4 py-3 text-left text-sm font-medium text-neutral-900" style={{ width: '200px', flex: '0 0 200px' }}>
+                Procedure code
               </div>
               {/* Procedure */}
               <div className="px-4 py-3 text-left text-sm font-medium text-neutral-900" style={{ flex: '1' }}>
@@ -645,6 +843,18 @@ export default function PrivatePlanDetailedPage() {
                 onCheckedChange={(checked) => setNewProcedure(prev => ({...prev, is_active: checked}))}
               />
             </div>
+            <div className="px-4 py-4" style={{ width: '200px', flex: '0 0 200px' }}>
+              <TextField
+                variant="outline"
+                className="w-full"
+              >
+                <TextField.Input
+                  placeholder="Enter code"
+                  value={newProcedure.procedure_code}
+                  onChange={(e) => setNewProcedure(prev => ({...prev, procedure_code: e.target.value}))}
+                />
+              </TextField>
+            </div>
             <div className="px-4 py-4" style={{ flex: '1' }}>
               <TextField
                 variant="outline"
@@ -676,12 +886,12 @@ export default function PrivatePlanDetailedPage() {
             </div>
             <div className="px-4 py-4" style={{ width: '120px', flex: '0 0 120px' }}>
               <CurrencyInput
-                placeholder="$0.00"
+                placeholder={`${currencySymbols[settings.currencyFormat] || '$'}0.00`}
                 defaultValue={newProcedure.price}
                 decimalsLimit={2}
                 decimalSeparator="."
                 groupSeparator=","
-                prefix="$"
+                prefix={(currencySymbols[settings.currencyFormat] || '$') + " "}
                 allowDecimals={true}
                 allowNegativeValue={false}
                 disableGroupSeparators={false}
@@ -693,18 +903,18 @@ export default function PrivatePlanDetailedPage() {
               />
             </div>
             <div className="px-4 py-4" style={{ width: '150px', flex: '0 0 150px' }}>
-              <Select
+              <TextField
                 variant="outline"
                 className="w-full"
-                value={newProcedure.estimated_time}
-                onValueChange={(value) => setNewProcedure(prev => ({...prev, estimated_time: value}))}
               >
-                {TIME_OPTIONS.map(time => (
-                  <Select.Item key={time} value={time}>
-                    {time}
-                  </Select.Item>
-                ))}
-              </Select>
+                <TextField.Input
+                  type="time"
+                  className="bg-white text-neutral-900"
+                  value={newProcedure.estimated_time}
+                  onChange={(e) => setNewProcedure(prev => ({...prev, estimated_time: e.target.value}))}
+                  step="300"
+                />
+              </TextField>
             </div>
             <div className="px-0 py-4 pr-12" style={{ width: '80px', flex: '0 0 80px' }}>
               <Button
@@ -746,30 +956,34 @@ export default function PrivatePlanDetailedPage() {
 
             {/* Existing Procedures */}
             {!loading && !error && table.getRowModel().rows.map((row) => (
-              <div key={row.id} className="flex items-center hover:bg-neutral-50 transition-colors">
+              <div key={row.original.id} className="flex items-center hover:bg-neutral-50 transition-colors">
                 {/* Active */}
                 <div className="px-4 py-4 first:pl-6" style={{ width: '80px', flex: '0 0 80px' }}>
                   {flexRender(row.getVisibleCells()[0].column.columnDef.cell, row.getVisibleCells()[0].getContext())}
                 </div>
+                {/* Procedure code */}
+                <div className="px-4 py-4" style={{ width: '200px', flex: '0 0 200px' }}>
+                  {flexRender(row.getVisibleCells()[1].column.columnDef.cell, row.getVisibleCells()[1].getContext())}
+                </div>
                 {/* Procedure */}
                 <div className="px-4 py-4" style={{ flex: '1' }}>
-                  {flexRender(row.getVisibleCells()[1].column.columnDef.cell, row.getVisibleCells()[1].getContext())}
+                  {flexRender(row.getVisibleCells()[2].column.columnDef.cell, row.getVisibleCells()[2].getContext())}
                 </div>
                 {/* Category */}
                 <div className="px-4 py-4" style={{ width: '300px', flex: '0 0 300px' }}>
-                  {flexRender(row.getVisibleCells()[2].column.columnDef.cell, row.getVisibleCells()[2].getContext())}
+                  {flexRender(row.getVisibleCells()[3].column.columnDef.cell, row.getVisibleCells()[3].getContext())}
                 </div>
                 {/* Price */}
                 <div className="px-4 py-4" style={{ width: '120px', flex: '0 0 120px' }}>
-                  {flexRender(row.getVisibleCells()[3].column.columnDef.cell, row.getVisibleCells()[3].getContext())}
+                  {flexRender(row.getVisibleCells()[4].column.columnDef.cell, row.getVisibleCells()[4].getContext())}
                 </div>
                 {/* Estimated time */}
                 <div className="px-4 py-4" style={{ width: '150px', flex: '0 0 150px' }}>
-                  {flexRender(row.getVisibleCells()[4].column.columnDef.cell, row.getVisibleCells()[4].getContext())}
+                  {flexRender(row.getVisibleCells()[5].column.columnDef.cell, row.getVisibleCells()[5].getContext())}
                 </div>
                 {/* Actions */}
                 <div className="px-4 py-4 last:pr-6" style={{ width: '80px', flex: '0 0 80px' }}>
-                  {flexRender(row.getVisibleCells()[5].column.columnDef.cell, row.getVisibleCells()[5].getContext())}
+                  {flexRender(row.getVisibleCells()[6].column.columnDef.cell, row.getVisibleCells()[6].getContext())}
                 </div>
               </div>
             ))}

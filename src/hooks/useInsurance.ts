@@ -125,21 +125,59 @@ export const useInsurance = () => {
         throw error;
       }
 
-      // If copying from private plan, call the stored procedure (if it exists)
+      // If copying from private plan, copy procedures from the private plan
+      console.log('🔍 Checking if should copy from private. copy_from_private value:', planData.copy_from_private);
       if (planData.copy_from_private && data) {
-        console.log('Copying services from private plan for:', data.id);
+        console.log('✅ Copying procedures from private plan for new plan:', data.id);
         try {
-          const { error: copyError } = await supabase
-            .rpc('copy_private_plan_services', { new_plan_id: data.id });
-          
-          if (copyError) {
-            console.warn('Warning: Could not copy services from private plan (function may not exist):', copyError);
-          } else {
-            console.log('Successfully copied services from private plan');
+          // First, find the private plan
+          const { data: privatePlan, error: privatePlanError } = await supabase
+            .from('insurance_plans')
+            .select('id')
+            .eq('type', 'private')
+            .single();
+
+          if (privatePlanError) {
+            console.warn('Could not find private plan:', privatePlanError);
+          } else if (privatePlan) {
+            // Get all procedures from the private plan
+            const { data: privateProcedures, error: proceduresError } = await supabase
+              .from('procedures')
+              .select('*')
+              .eq('insurance_plan_id', privatePlan.id)
+              .eq('is_active', true);
+
+            if (proceduresError) {
+              console.warn('Could not fetch private plan procedures:', proceduresError);
+            } else if (privateProcedures && privateProcedures.length > 0) {
+              // Copy procedures to the new plan
+              const proceduresToCopy = privateProcedures.map(proc => ({
+                name: proc.name,
+                category: proc.category,
+                price: proc.price,
+                estimated_time: proc.estimated_time,
+                is_active: proc.is_active,
+                insurance_plan_id: data.id
+              }));
+
+              const { error: copyError } = await supabase
+                .from('procedures')
+                .insert(proceduresToCopy);
+
+              if (copyError) {
+                console.warn('Warning: Could not copy all procedures from private plan:', copyError);
+              } else {
+                console.log(`Successfully copied ${privateProcedures.length} procedures from private plan`);
+              }
+            } else {
+              console.log('No procedures found in private plan to copy');
+            }
           }
         } catch (copyErr) {
-          console.warn('Copy function not available, skipping...', copyErr);
+          console.warn('Error during procedure copying:', copyErr);
         }
+      } else {
+        console.log('❌ NOT copying from private plan. Starting from scratch.');
       }
 
       // Refresh insurance plans list

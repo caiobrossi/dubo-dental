@@ -31,22 +31,24 @@ function InsuranceSettingsPage() {
   console.log('InsuranceSettingsPage - error:', error);
 
 
-  const handleEdit = (planId: string) => {
-    console.log('🔧 Edit plan clicked:', planId);
+  const handleCardClick = (planId: string) => {
+    console.log('🔧 Card clicked:', planId);
     
-    // Find the plan to check if it's the Private Plan
+    // Find the plan and navigate to procedures page
     const plan = insurancePlans.find(p => p.id === planId);
     console.log('📋 Plan found:', plan);
-    console.log('📝 Plan type:', plan?.type);
     
-    if (plan?.type === 'private') {
-      console.log('🚀 Navigating to Private Plan page...');
-      // Navigate to the Private Plan detailed page
-      router.push('/private-plan');
+    if (plan) {
+      console.log('🚀 Navigating to procedures page for plan:', plan.name);
+      // Navigate to the procedures page with plan ID for any type of insurance
+      router.push(`/procedures?planId=${encodeURIComponent(plan.name)}`);
     } else {
-      // TODO: Implement edit functionality for other plans
-      console.log('⚠️ Edit functionality for custom plans coming soon');
+      console.log('❌ Plan not found');
     }
+  };
+
+  const handleEdit = (planId: string) => {
+    handleCardClick(planId);
   };
 
   const handleDuplicate = async (planId: string, planName: string) => {
@@ -79,7 +81,7 @@ function InsuranceSettingsPage() {
         </span>
         <Button
           disabled={false}
-          size="medium"
+          size="large"
           icon={<FeatherPlus />}
           iconRight={null}
           loading={false}
@@ -96,7 +98,7 @@ function InsuranceSettingsPage() {
         </span>
         <Button
           disabled={false}
-          size="medium"
+          size="large"
           icon={<FeatherPlus />}
           iconRight={null}
           loading={false}
@@ -141,6 +143,7 @@ function InsuranceSettingsPage() {
             <RolesAndPermissionsCard
               key={plan.id}
               title={plan.name}
+              onClick={() => handleCardClick(plan.id)}
               menuActions={
                 <DropdownMenu>
                   <DropdownMenu.DropdownItem 

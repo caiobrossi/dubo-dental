@@ -34,12 +34,15 @@ function NewInsurancePlanModal({ open, onOpenChange }: NewInsurancePlanModalProp
       .join(' ');
     
     console.log('🆕 Creating new insurance plan:', capitalizedName);
+    console.log('📋 Start option selected:', startOption);
     
     const planData: CreateInsurancePlanRequest = {
       name: capitalizedName,
       type: 'custom',
       copy_from_private: startOption === "copy_private"
     };
+    
+    console.log('📦 Plan data being sent:', planData);
 
     const result = await createInsurancePlan(planData);
     console.log('✅ Insurance plan creation result:', result);
