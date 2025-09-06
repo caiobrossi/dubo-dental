@@ -56,9 +56,14 @@ function InsuranceSettingsPage() {
     await duplicateInsurancePlan(planId, newName);
   };
 
-  const handleDelete = async (planId: string) => {
+  const handleDelete = async (planId: string, event?: React.MouseEvent) => {
+    // Prevent event propagation to card click
+    if (event) {
+      event.stopPropagation();
+    }
+    
     console.log('🗑️ Delete requested for plan:', planId);
-    if (window.confirm('Are you sure you want to delete this insurance plan?')) {
+    if (window.confirm('Are you sure you want to delete this insurance plan? This will also delete all associated procedures.')) {
       console.log('✅ User confirmed deletion');
       const result = await deleteInsurancePlan(planId);
       console.log('📝 Delete result:', result);
@@ -148,20 +153,29 @@ function InsuranceSettingsPage() {
                 <DropdownMenu>
                   <DropdownMenu.DropdownItem 
                     icon={<FeatherEdit2 />}
-                    onClick={() => handleEdit(plan.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(plan.id);
+                    }}
                   >
                     Edit plan
                   </DropdownMenu.DropdownItem>
                   <DropdownMenu.DropdownItem 
                     icon={<FeatherCopy />}
-                    onClick={() => handleDuplicate(plan.id, plan.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDuplicate(plan.id, plan.name);
+                    }}
                   >
                     Duplicate plan
                   </DropdownMenu.DropdownItem>
                   {plan.type !== 'private' && (
                     <DropdownMenu.DropdownItem 
                       icon={<FeatherTrash />}
-                      onClick={() => handleDelete(plan.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(plan.id);
+                      }}
                     >
                       Delete
                     </DropdownMenu.DropdownItem>

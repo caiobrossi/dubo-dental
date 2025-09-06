@@ -35,6 +35,7 @@ export const SettingsSidebar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { sidebarClasses, menuContainerClasses, getTextSize } = useMenuLayout();
 
+
   const menuItems: MenuItem[] = [
     { 
       id: "general", 
@@ -139,12 +140,12 @@ export const SettingsSidebar: React.FC = () => {
       <div className={`
         ${mobileMenuOpen ? 'block' : 'hidden'} 
         lg:block 
-        w-full lg:w-auto
+        w-full lg:w-64
         absolute lg:relative 
         top-[60px] lg:top-0 
         left-0 
         z-50 lg:z-auto
-        bg-default-background lg:bg-transparent
+        bg-white lg:bg-white
         shadow-lg lg:shadow-none
         flex flex-col items-start  
         lg:self-stretch 
@@ -152,7 +153,7 @@ export const SettingsSidebar: React.FC = () => {
         border-solid border-neutral-border 
         lg:pl-4 lg:pr-8 
         ${sidebarClasses} ${menuContainerClasses}
-      `}>
+      `} style={{ minHeight: '500px', backgroundColor: '#f3f4f6' }}>
         <ChatChannelsMenu>
           {menuItems.map(item => {
             const isSelected = item.href === pathname;

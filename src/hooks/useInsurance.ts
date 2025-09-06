@@ -222,7 +222,7 @@ export const useInsurance = () => {
     }
   };
 
-  // Delete insurance plan (soft delete)
+  // Delete insurance plan and all associated procedures
   const deleteInsurancePlan = async (id: string): Promise<boolean> => {
     try {
       console.log('🗑️ Starting deletion for plan ID:', id);
@@ -245,6 +245,20 @@ export const useInsurance = () => {
         return false;
       }
 
+      // Delete all procedures associated with this plan
+      console.log('🗑️ Deleting procedures for plan:', id);
+      const { error: proceduresError } = await supabase
+        .from('procedures')
+        .delete()
+        .eq('insurance_plan_id', id);
+
+      if (proceduresError) {
+        console.error('❌ Error deleting procedures:', proceduresError);
+        throw proceduresError;
+      }
+      console.log('✅ Procedures deleted successfully');
+
+      // Then soft delete the insurance plan
       const { error } = await supabase
         .from('insurance_plans')
         .update({ is_active: false })
@@ -255,7 +269,7 @@ export const useInsurance = () => {
 
       if (error) throw error;
 
-      console.log('✅ Insurance plan deleted successfully');
+      console.log('✅ Insurance plan and all associated data deleted successfully');
       // Refresh insurance plans list
       await fetchInsurancePlans();
       console.log('🔄 Insurance plans list refreshed after deletion');
